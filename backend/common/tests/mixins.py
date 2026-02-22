@@ -128,11 +128,12 @@ class AuthMixin:
         )
 
         # Create default budget account
+        pln_currency = self.workspace.currencies.filter(symbol='PLN').first()
         BudgetAccountFactory(
             workspace=self.workspace,
             name='General',
             description='General budget account',
-            default_currency='PLN',
+            default_currency=pln_currency,
             is_active=True,
             display_order=0,
             created_by=self.user,

@@ -65,11 +65,12 @@ def register(request, data: RegisterIn):
         CurrencyService.create_default_currencies(workspace)
 
         # Create default budget account
+        pln_currency = workspace.currencies.get(symbol='PLN')
         BudgetAccount.objects.create(
             workspace=workspace,
             name='General',
             description='General budget account',
-            default_currency='PLN',
+            default_currency=pln_currency,
             is_active=True,
             display_order=0,
             created_by=user,

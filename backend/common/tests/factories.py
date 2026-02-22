@@ -23,6 +23,8 @@ class BudgetAccountFactory(DjangoModelFactory):
     workspace = factory.SubFactory('workspaces.factories.WorkspaceFactory')
     name = factory.Faker('word')
     description = factory.Faker('sentence')
-    default_currency = 'PLN'
+    default_currency = factory.LazyAttribute(
+        lambda obj: obj.workspace.currencies.filter(symbol='PLN').first()
+    )
     is_active = True
     display_order = 0

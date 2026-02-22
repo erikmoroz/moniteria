@@ -19,7 +19,7 @@ class PeriodBalanceService:
     def get_balance(balance_id: int, workspace_id: int) -> PeriodBalance | None:
         """Get a balance and verify it belongs to the workspace."""
         return (
-            PeriodBalance.objects.select_related('budget_period__budget_account')
+            PeriodBalance.objects.select_related('budget_period__budget_account', 'currency')
             .filter(
                 id=balance_id,
                 budget_period__budget_account__workspace_id=workspace_id,
@@ -28,11 +28,22 @@ class PeriodBalanceService:
         )
 
     @staticmethod
-    def recalculate(period_id: int, currency: str) -> PeriodBalance:
+    def recalculate(period_id: int, currency_symbol: str) -> PeriodBalance:
         """Recalculate a period balance from scratch using aggregates."""
-        current_period = BudgetPeriod.objects.filter(id=period_id).first()
+        from workspaces.models import Currency
+
+        current_period = (
+            BudgetPeriod.objects.select_related('budget_account__workspace')
+            .filter(id=period_id)
+            .first()
+        )
         if not current_period:
             raise HttpError(404, 'Budget period not found')
+
+        workspace = current_period.budget_account.workspace
+        currency = Currency.objects.filter(workspace=workspace, symbol=currency_symbol).first()
+        if not currency:
+            raise HttpError(400, f'Currency {currency_symbol} not found in workspace')
 
         # Opening balance comes from the previous period's closing balance
         prev_period = (
@@ -53,21 +64,21 @@ class PeriodBalanceService:
             if prev_balance:
                 opening = prev_balance.closing_balance
 
-        income = Transaction.objects.filter(budget_period_id=period_id, currency=currency, type='income').aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal('0')
+        income = Transaction.objects.filter(
+            budget_period_id=period_id, currency=currency, type='income'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        expenses = Transaction.objects.filter(budget_period_id=period_id, currency=currency, type='expense').aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal('0')
+        expenses = Transaction.objects.filter(
+            budget_period_id=period_id, currency=currency, type='expense'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        exchanges_in = CurrencyExchange.objects.filter(budget_period_id=period_id, to_currency=currency).aggregate(
-            total=Sum('to_amount')
-        )['total'] or Decimal('0')
+        exchanges_in = CurrencyExchange.objects.filter(
+            budget_period_id=period_id, to_currency=currency
+        ).aggregate(total=Sum('to_amount'))['total'] or Decimal('0')
 
-        exchanges_out = CurrencyExchange.objects.filter(budget_period_id=period_id, from_currency=currency).aggregate(
-            total=Sum('from_amount')
-        )['total'] or Decimal('0')
+        exchanges_out = CurrencyExchange.objects.filter(
+            budget_period_id=period_id, from_currency=currency
+        ).aggregate(total=Sum('from_amount'))['total'] or Decimal('0')
 
         balance = get_or_create_period_balance(period_id, currency)
         # Preserve manually set opening balances
