@@ -185,9 +185,7 @@ class PlannedTransactionService:
         if not period:
             raise HttpError(404, 'Budget period not found')
 
-        queryset = PlannedTransaction.objects.select_related('category', 'currency').filter(
-            budget_period_id=period_id
-        )
+        queryset = PlannedTransaction.objects.select_related('category', 'currency').filter(budget_period_id=period_id)
         if status:
             queryset = queryset.filter(status=status)
 

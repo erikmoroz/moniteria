@@ -7,9 +7,7 @@ class Budget(models.Model):
 
     budget_period = models.ForeignKey('budget_periods.BudgetPeriod', on_delete=models.CASCADE, related_name='budgets')
     category = models.ForeignKey('categories.Category', on_delete=models.CASCADE, related_name='budgets')
-    currency = models.ForeignKey(
-        'workspaces.Currency', on_delete=models.PROTECT, related_name='budgets'
-    )
+    currency = models.ForeignKey('workspaces.Currency', on_delete=models.PROTECT, related_name='budgets')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_budgets'

@@ -173,9 +173,11 @@ class CurrencyExchangeService:
         if not period:
             raise HttpError(404, 'Budget period not found')
 
-        exchanges = CurrencyExchange.objects.select_related('from_currency', 'to_currency').filter(
-            budget_period_id=period_id
-        ).order_by('-date')
+        exchanges = (
+            CurrencyExchange.objects.select_related('from_currency', 'to_currency')
+            .filter(budget_period_id=period_id)
+            .order_by('-date')
+        )
         return [
             {
                 'date': e.date.isoformat(),

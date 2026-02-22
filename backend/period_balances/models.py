@@ -8,9 +8,7 @@ class PeriodBalance(models.Model):
     budget_period = models.ForeignKey(
         'budget_periods.BudgetPeriod', on_delete=models.CASCADE, related_name='period_balances'
     )
-    currency = models.ForeignKey(
-        'workspaces.Currency', on_delete=models.PROTECT, related_name='period_balances'
-    )
+    currency = models.ForeignKey('workspaces.Currency', on_delete=models.PROTECT, related_name='period_balances')
     opening_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     total_income = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     total_expenses = models.DecimalField(max_digits=15, decimal_places=2, default=0)
