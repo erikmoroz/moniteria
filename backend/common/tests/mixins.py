@@ -10,7 +10,8 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from common.auth import create_access_token
-from common.tests.factories import BudgetAccountFactory, UserFactory, WorkspaceFactory
+from common.tests.factories import BudgetAccountFactory, UserFactory
+from workspaces.factories import WorkspaceFactory
 from workspaces.models import Workspace, WorkspaceMember
 
 User = get_user_model()
