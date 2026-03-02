@@ -28,8 +28,8 @@ export default function DatePicker({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const isoToJsWeekday = (isoDay: number): number => {
-    return isoDay === 7 ? 0 : isoDay
+  const isoToJsWeekday = (isoDay: number): 0 | 1 | 2 | 3 | 4 | 5 | 6 => {
+    return (isoDay === 7 ? 0 : isoDay) as 0 | 1 | 2 | 3 | 4 | 5 | 6
   }
 
   const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
