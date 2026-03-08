@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { legalApi } from '../api/client';
 import toast from 'react-hot-toast';
-import { TERMS_VERSION, PRIVACY_VERSION } from '../constants';
 
 export default function Register() {
   const { register, isAuthenticated, isLoading } = useAuth();
@@ -13,6 +13,15 @@ export default function Register() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsVersion, setTermsVersion] = useState('');
+  const [privacyVersion, setPrivacyVersion] = useState('');
+
+  useEffect(() => {
+    Promise.all([legalApi.getTerms(), legalApi.getPrivacy()]).then(([terms, privacy]) => {
+      setTermsVersion(terms.version);
+      setPrivacyVersion(privacy.version);
+    });
+  }, []);
 
   // Redirect if demo mode is enabled
   if (import.meta.env.VITE_DEMO_MODE === 'true') {
@@ -45,8 +54,8 @@ export default function Register() {
         password,
         full_name: fullName || undefined,
         workspace_name: workspaceName,
-        accepted_terms_version: TERMS_VERSION,
-        accepted_privacy_version: PRIVACY_VERSION,
+        accepted_terms_version: termsVersion,
+        accepted_privacy_version: privacyVersion,
       });
     } catch {
       // Error handled in AuthContext
@@ -170,7 +179,7 @@ export default function Register() {
           <div>
             <button
               type="submit"
-              disabled={isSubmitting || !acceptedTerms}
+              disabled={isSubmitting || !acceptedTerms || !termsVersion}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Creating account...' : 'Create account'}

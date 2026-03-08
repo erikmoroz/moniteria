@@ -4,8 +4,6 @@ from django.core.validators import EmailValidator
 from django.core.validators import ValidationError as DjangoValidationError
 from pydantic import BaseModel, Field, field_validator
 
-from core.constants import PRIVACY_VERSION, TERMS_VERSION
-
 
 class Token(BaseModel):
     """Token response schema."""
@@ -53,15 +51,21 @@ class RegisterIn(BaseModel):
     @field_validator('accepted_terms_version')
     @classmethod
     def validate_terms_version(cls, v: str) -> str:
-        if v != TERMS_VERSION:
-            raise ValueError(f'Must accept current Terms of Service version ({TERMS_VERSION})')
+        from core.legal import get_terms
+
+        required = get_terms()['version']
+        if v != required:
+            raise ValueError(f'Must accept current Terms of Service version ({required})')
         return v
 
     @field_validator('accepted_privacy_version')
     @classmethod
     def validate_privacy_version(cls, v: str) -> str:
-        if v != PRIVACY_VERSION:
-            raise ValueError(f'Must accept current Privacy Policy version ({PRIVACY_VERSION})')
+        from core.legal import get_privacy
+
+        required = get_privacy()['version']
+        if v != required:
+            raise ValueError(f'Must accept current Privacy Policy version ({required})')
         return v
 
     @field_validator('email')

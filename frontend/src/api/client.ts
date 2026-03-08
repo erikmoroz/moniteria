@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosError } from 'axios';
-import type { User, Token, LoginRequest, RegisterRequest, Workspace, BudgetAccount, WorkspaceMember, AddMemberRequest, AddMemberResponse, UserPreferences, AccountDeleteCheck, ConsentStatus } from '../types';
+import type { User, Token, LoginRequest, RegisterRequest, Workspace, BudgetAccount, WorkspaceMember, AddMemberRequest, AddMemberResponse, UserPreferences, AccountDeleteCheck, ConsentStatus, LegalDoc } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
@@ -46,6 +46,15 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ============= Legal API =============
+export const legalApi = {
+  getTerms: (): Promise<LegalDoc> =>
+    api.get<LegalDoc>('/legal/terms').then(res => res.data),
+
+  getPrivacy: (): Promise<LegalDoc> =>
+    api.get<LegalDoc>('/legal/privacy').then(res => res.data),
+};
 
 export const budgetPeriodsApi = {
   getAll: (budgetAccountId?: number) => api.get('/budget-periods', { params: budgetAccountId ? { budget_account_id: budgetAccountId } : undefined }),

@@ -124,6 +124,12 @@ export interface RegisterRequest {
   accepted_privacy_version: string;
 }
 
+export interface LegalDoc {
+  version: string;
+  effective_date: string;
+  content: string;
+}
+
 export interface ConsentStatus {
   terms_current: boolean;
   privacy_current: boolean;

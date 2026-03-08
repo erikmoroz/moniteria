@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { TERMS_VERSION, PRIVACY_VERSION } from '../constants';
 import type { ConsentStatus } from '../types';
 import toast from 'react-hot-toast';
 
@@ -29,11 +28,11 @@ export default function ReConsentPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      if (needsTerms) {
-        await authApi.grantConsent('terms_of_service', TERMS_VERSION);
+      if (needsTerms && status) {
+        await authApi.grantConsent('terms_of_service', status.terms_version_required);
       }
-      if (needsPrivacy) {
-        await authApi.grantConsent('privacy_policy', PRIVACY_VERSION);
+      if (needsPrivacy && status) {
+        await authApi.grantConsent('privacy_policy', status.privacy_version_required);
       }
       toast.success('Thank you for accepting the updated documents');
       navigate('/');
@@ -74,7 +73,7 @@ export default function ReConsentPage() {
                 <Link to="/terms" target="_blank" className="text-blue-600 hover:underline">
                   Terms of Service
                 </Link>{' '}
-                (v{TERMS_VERSION})
+                {status && `(v${status.terms_version_required})`}
               </span>
             </label>
           )}
@@ -92,7 +91,7 @@ export default function ReConsentPage() {
                 <Link to="/privacy" target="_blank" className="text-blue-600 hover:underline">
                   Privacy Policy
                 </Link>{' '}
-                (v{PRIVACY_VERSION})
+                {status && `(v${status.privacy_version_required})`}
               </span>
             </label>
           )}

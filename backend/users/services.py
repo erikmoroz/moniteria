@@ -115,19 +115,19 @@ class UserService:
         Returns a dict suitable for ConsentStatusOut. If either consent is missing
         or on an older version, needs_reconsent will be True.
         """
-        from core.constants import PRIVACY_VERSION, TERMS_VERSION
+        from core.legal import get_privacy, get_terms
 
-        active = {
-            c.consent_type: c.version
-            for c in UserConsent.objects.filter(user=user, withdrawn_at__isnull=True)
-        }
-        terms_current = active.get(ConsentType.TERMS_OF_SERVICE) == TERMS_VERSION
-        privacy_current = active.get(ConsentType.PRIVACY_POLICY) == PRIVACY_VERSION
+        terms_version = get_terms()['version']
+        privacy_version = get_privacy()['version']
+
+        active = {c.consent_type: c.version for c in UserConsent.objects.filter(user=user, withdrawn_at__isnull=True)}
+        terms_current = active.get(ConsentType.TERMS_OF_SERVICE) == terms_version
+        privacy_current = active.get(ConsentType.PRIVACY_POLICY) == privacy_version
         return {
             'terms_current': terms_current,
             'privacy_current': privacy_current,
-            'terms_version_required': TERMS_VERSION,
-            'privacy_version_required': PRIVACY_VERSION,
+            'terms_version_required': terms_version,
+            'privacy_version_required': privacy_version,
             'needs_reconsent': not (terms_current and privacy_current),
         }
 
