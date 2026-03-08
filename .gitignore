@@ -12,6 +12,7 @@ backend/.env
 
 # AI Tools
 .claude
+.ipm
 
 # Python
 __pycache__/

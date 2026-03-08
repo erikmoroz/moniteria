@@ -3,6 +3,9 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
+const TERMS_VERSION = '1.0';
+const PRIVACY_VERSION = '1.0';
+
 export default function Register() {
   const { register, isAuthenticated, isLoading } = useAuth();
   const [email, setEmail] = useState('');
@@ -11,6 +14,7 @@ export default function Register() {
   const [fullName, setFullName] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Redirect if demo mode is enabled
   if (import.meta.env.VITE_DEMO_MODE === 'true') {
@@ -43,6 +47,8 @@ export default function Register() {
         password,
         full_name: fullName || undefined,
         workspace_name: workspaceName,
+        accepted_terms_version: TERMS_VERSION,
+        accepted_privacy_version: PRIVACY_VERSION,
       });
     } catch {
       // Error handled in AuthContext
@@ -145,10 +151,28 @@ export default function Register() {
             </div>
           </div>
 
+          <div className="flex items-start gap-2">
+            <input
+              id="accept-terms"
+              type="checkbox"
+              required
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-1"
+            />
+            <label htmlFor="accept-terms" className="text-sm text-gray-600">
+              I accept the{' '}
+              <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
+              {' '}and{' '}
+              <Link to="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
+              {' '}*
+            </label>
+          </div>
+
           <div>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !acceptedTerms}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Creating account...' : 'Create account'}
@@ -162,6 +186,12 @@ export default function Register() {
             >
               Already have an account? Sign in
             </Link>
+          </div>
+
+          <div className="text-center text-xs text-gray-500">
+            <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
+            {' · '}
+            <Link to="/terms" className="hover:underline">Terms of Service</Link>
           </div>
         </form>
       </div>

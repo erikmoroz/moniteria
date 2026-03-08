@@ -3,7 +3,13 @@
 from ninja import Router
 
 from common.auth import JWTAuth, user_to_schema
+from common.throttle import rate_limit
 from core.schemas import (
+    AccountDeleteCheckOut,
+    AccountDeleteIn,
+    AccountDeleteOut,
+    ConsentIn,
+    ConsentOut,
     DetailOut,
     MessageOut,
     UserOut,
@@ -53,3 +59,84 @@ def update_preferences(request, data: UserPreferencesUpdate):
     """Update current user's preferences."""
     preferences = services.UserService.update_preferences(request.auth, data)
     return 200, {'calendar_start_day': preferences.calendar_start_day}
+
+
+@router.get('/me/consents', auth=JWTAuth(), response={200: list[ConsentOut]})
+def list_consents(request):
+    """List all active consents for the current user."""
+    return 200, services.UserService.get_active_consents(request.auth)
+
+
+@router.post('/me/consents', auth=JWTAuth(), response={201: ConsentOut})
+def grant_consent(request, data: ConsentIn):
+    """Record a new consent (e.g., after accepting updated terms)."""
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+    consent = services.UserService.record_consent(request.auth, data.consent_type, data.version, ip)
+    return 201, consent
+
+
+@router.delete('/me/consents/{consent_type}', auth=JWTAuth(), response={200: ConsentOut, 404: DetailOut})
+def withdraw_consent(request, consent_type: str):
+    """Withdraw consent of a specific type."""
+    consent = services.UserService.withdraw_consent(request.auth, consent_type)
+    return 200, consent
+
+
+@router.get('/me/deletion-check', auth=JWTAuth(), response={200: AccountDeleteCheckOut})
+def check_account_deletion(request):
+    """
+    Pre-check what would happen if the user deletes their account.
+
+    Returns information about:
+    - Whether deletion is possible (blocked if user owns shared workspaces)
+    - Which workspaces would be deleted
+    - How many records would be affected
+
+    Use this to show a confirmation dialog before actual deletion.
+    """
+    result = services.UserService.check_deletion(request.auth)
+    return 200, result
+
+
+@router.delete('/me', auth=JWTAuth(), response={200: AccountDeleteOut, 400: DetailOut, 401: DetailOut})
+def delete_account(request, data: AccountDeleteIn):
+    """
+    Permanently delete the user's account and all associated data.
+
+    This action is IRREVERSIBLE. Requires password confirmation.
+
+    Solo-owned workspaces are fully deleted. Memberships in other users'
+    workspaces are removed (but the workspaces and their data remain).
+    """
+    result = services.UserService.delete_account(request.auth, data.password)
+    return 200, {
+        'message': 'Account and all associated data deleted successfully.',
+        'deleted_workspaces': result['deleted_workspaces'],
+    }
+
+
+@router.get('/me/export', auth=JWTAuth())
+@rate_limit('data_export', limit=3, period=3600)
+def export_my_data(request):
+    """
+    Export all personal data as a JSON file (GDPR Articles 15 & 20).
+
+    Downloads a comprehensive JSON file containing the user's profile,
+    preferences, consent records, and all financial data across all workspaces.
+
+    Rate limited to 3 exports per hour.
+    """
+    import json
+
+    from django.http import HttpResponse
+
+    from common.json_encoder import GDPREncoder
+
+    export_data = services.UserService.export_all_data(request.auth)
+
+    response = HttpResponse(
+        json.dumps(export_data, indent=2, cls=GDPREncoder, ensure_ascii=False),
+        content_type='application/json; charset=utf-8',
+    )
+    response['Content-Disposition'] = f'attachment; filename="monie_data_export_{request.auth.id}.json"'
+    return response

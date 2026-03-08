@@ -61,6 +61,14 @@ def register(request, data: RegisterIn):
             role='owner',
         )
 
+        # Record GDPR consents
+        from users.models import ConsentType
+        from users.services import UserService
+
+        ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+        UserService.record_consent(user, ConsentType.TERMS_OF_SERVICE, data.accepted_terms_version, ip)
+        UserService.record_consent(user, ConsentType.PRIVACY_POLICY, data.accepted_privacy_version, ip)
+
         # Create default currencies for the workspace
         CurrencyService.create_default_currencies(workspace)
 

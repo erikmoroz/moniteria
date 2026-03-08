@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosError } from 'axios';
-import type { User, Token, LoginRequest, RegisterRequest, Workspace, BudgetAccount, WorkspaceMember, AddMemberRequest, AddMemberResponse, UserPreferences } from '../types';
+import type { User, Token, LoginRequest, RegisterRequest, Workspace, BudgetAccount, WorkspaceMember, AddMemberRequest, AddMemberResponse, UserPreferences, AccountDeleteCheck } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
@@ -150,6 +150,15 @@ export const authApi = {
 
   updatePreferences: (data: { calendar_start_day: number }): Promise<UserPreferences> =>
     api.patch<UserPreferences>('/users/me/preferences', data).then(res => res.data),
+
+  checkDeletion: (): Promise<AccountDeleteCheck> =>
+    api.get<AccountDeleteCheck>('/users/me/deletion-check').then(res => res.data),
+
+  deleteAccount: (password: string): Promise<{ message: string; deleted_workspaces: string[] }> =>
+    api.delete('/users/me', { data: { password } }).then(res => res.data),
+
+  exportData: (): Promise<Blob> =>
+    api.get('/users/me/export', { responseType: 'blob' }).then(res => res.data),
 };
 
 // ============= Workspaces API =============
