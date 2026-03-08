@@ -81,6 +81,39 @@ class ConsentTests(AuthMixin, TestCase):
         )
         self.assertEqual(response.status_code, 422)
 
+    def test_consent_status_up_to_date(self):
+        """GET /me/consent-status returns needs_reconsent=False when consents are current."""
+        UserConsent.objects.create(user=self.user, consent_type='terms_of_service', version='1.0')
+        UserConsent.objects.create(user=self.user, consent_type='privacy_policy', version='1.0')
+
+        response = self.client.get('/api/users/me/consent-status', **self.auth_headers())
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['terms_current'])
+        self.assertTrue(data['privacy_current'])
+        self.assertFalse(data['needs_reconsent'])
+
+    def test_consent_status_outdated(self):
+        """GET /me/consent-status returns needs_reconsent=True when consent version is old."""
+        UserConsent.objects.create(user=self.user, consent_type='terms_of_service', version='0.9')
+        UserConsent.objects.create(user=self.user, consent_type='privacy_policy', version='1.0')
+
+        response = self.client.get('/api/users/me/consent-status', **self.auth_headers())
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['terms_current'])
+        self.assertTrue(data['privacy_current'])
+        self.assertTrue(data['needs_reconsent'])
+
+    def test_consent_status_missing(self):
+        """GET /me/consent-status returns needs_reconsent=True when no consent exists."""
+        response = self.client.get('/api/users/me/consent-status', **self.auth_headers())
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['terms_current'])
+        self.assertFalse(data['privacy_current'])
+        self.assertTrue(data['needs_reconsent'])
+
     def test_grant_consent_records_ip_address(self):
         """Granting consent should record the client's IP address."""
         response = self.client.post(

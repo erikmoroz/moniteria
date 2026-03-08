@@ -10,6 +10,7 @@ from core.schemas import (
     AccountDeleteOut,
     ConsentIn,
     ConsentOut,
+    ConsentStatusOut,
     DetailOut,
     MessageOut,
     UserOut,
@@ -73,6 +74,17 @@ def grant_consent(request, data: ConsentIn):
     ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
     consent = services.UserService.record_consent(request.auth, data.consent_type, data.version, ip)
     return 201, consent
+
+
+@router.get('/me/consent-status', auth=JWTAuth(), response={200: ConsentStatusOut})
+def get_consent_status(request):
+    """
+    Check whether the user's active consents match the current document versions.
+
+    Returns needs_reconsent=True when the user must re-accept updated terms or
+    privacy policy before continuing to use the application.
+    """
+    return 200, services.UserService.get_consent_status(request.auth)
 
 
 @router.delete('/me/consents/{consent_type}', auth=JWTAuth(), response={200: ConsentOut, 404: DetailOut})

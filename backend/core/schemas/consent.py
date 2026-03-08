@@ -30,3 +30,13 @@ class ConsentOut(BaseModel):
     version: str
     granted_at: datetime
     withdrawn_at: datetime | None = None
+
+
+class ConsentStatusOut(BaseModel):
+    """Whether the user's active consents match the current document versions."""
+
+    terms_current: bool
+    privacy_current: bool
+    terms_version_required: str
+    privacy_version_required: str
+    needs_reconsent: bool

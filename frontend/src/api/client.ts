@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosError } from 'axios';
-import type { User, Token, LoginRequest, RegisterRequest, Workspace, BudgetAccount, WorkspaceMember, AddMemberRequest, AddMemberResponse, UserPreferences, AccountDeleteCheck } from '../types';
+import type { User, Token, LoginRequest, RegisterRequest, Workspace, BudgetAccount, WorkspaceMember, AddMemberRequest, AddMemberResponse, UserPreferences, AccountDeleteCheck, ConsentStatus } from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
@@ -159,6 +159,12 @@ export const authApi = {
 
   exportData: (): Promise<Blob> =>
     api.get('/users/me/export', { responseType: 'blob' }).then(res => res.data),
+
+  getConsentStatus: (): Promise<ConsentStatus> =>
+    api.get<ConsentStatus>('/users/me/consent-status').then(res => res.data),
+
+  grantConsent: (consentType: string, version: string) =>
+    api.post('/users/me/consents', { consent_type: consentType, version }).then(res => res.data),
 };
 
 // ============= Workspaces API =============

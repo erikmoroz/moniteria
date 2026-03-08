@@ -34,7 +34,7 @@ from core.schemas.common import (
 # =============================================================================
 # Consent Schemas
 # =============================================================================
-from core.schemas.consent import ConsentIn, ConsentOut
+from core.schemas.consent import ConsentIn, ConsentOut, ConsentStatusOut
 
 # =============================================================================
 # GDPR Schemas
@@ -87,6 +87,7 @@ __all__ = [
     # Consent
     'ConsentIn',
     'ConsentOut',
+    'ConsentStatusOut',
     # GDPR
     'AccountDeleteIn',
     'AccountDeleteCheckOut',

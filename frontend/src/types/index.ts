@@ -124,6 +124,14 @@ export interface RegisterRequest {
   accepted_privacy_version: string;
 }
 
+export interface ConsentStatus {
+  terms_current: boolean;
+  privacy_current: boolean;
+  terms_version_required: string;
+  privacy_version_required: string;
+  needs_reconsent: boolean;
+}
+
 export interface AccountDeleteCheck {
   can_delete: boolean;
   blocking_workspaces: Array<{ id: number; name: string; member_count: number }> | null;

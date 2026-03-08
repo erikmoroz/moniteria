@@ -9,6 +9,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  needsReconsent: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => void;
@@ -20,7 +21,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsReconsent, setNeedsReconsent] = useState(false);
   const navigate = useNavigate();
+
+  const checkConsentStatus = async () => {
+    try {
+      const status = await authApi.getConsentStatus();
+      setNeedsReconsent(status.needs_reconsent);
+      if (status.needs_reconsent) {
+        navigate('/reconsent');
+      }
+    } catch {
+      // Non-critical — do not block the user if the check fails
+    }
+  };
 
   // Load user on mount if token exists
   useEffect(() => {
@@ -34,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const currentUser = await authApi.getCurrentUser();
         setUser(currentUser);
+        await checkConsentStatus();
       } catch (error) {
         console.error('Failed to load user:', error);
         clearAuthToken();
@@ -56,7 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
 
       toast.success('Logged in successfully');
-      navigate('/');
+      await checkConsentStatus();
+      if (!needsReconsent) navigate('/');
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
       const message = err.response?.data?.detail || 'Login failed';
@@ -106,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        needsReconsent,
         login,
         register,
         logout,

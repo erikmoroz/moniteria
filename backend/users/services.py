@@ -108,6 +108,30 @@ class UserService:
         return list(UserConsent.objects.filter(user=user, withdrawn_at__isnull=True).order_by('-granted_at'))
 
     @staticmethod
+    def get_consent_status(user: User) -> dict:
+        """
+        Check whether the user's active consents match the current document versions.
+
+        Returns a dict suitable for ConsentStatusOut. If either consent is missing
+        or on an older version, needs_reconsent will be True.
+        """
+        from core.constants import PRIVACY_VERSION, TERMS_VERSION
+
+        active = {
+            c.consent_type: c.version
+            for c in UserConsent.objects.filter(user=user, withdrawn_at__isnull=True)
+        }
+        terms_current = active.get(ConsentType.TERMS_OF_SERVICE) == TERMS_VERSION
+        privacy_current = active.get(ConsentType.PRIVACY_POLICY) == PRIVACY_VERSION
+        return {
+            'terms_current': terms_current,
+            'privacy_current': privacy_current,
+            'terms_version_required': TERMS_VERSION,
+            'privacy_version_required': PRIVACY_VERSION,
+            'needs_reconsent': not (terms_current and privacy_current),
+        }
+
+    @staticmethod
     def check_deletion(user: User) -> dict:
         """
         Check what would be affected by account deletion.
