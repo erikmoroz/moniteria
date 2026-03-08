@@ -272,6 +272,20 @@ import { useAuth } from '../contexts/AuthContext'
 3. **Role-Based Permissions**: `require_role(user, workspace_id, WRITE_ROLES)`
 4. **Resource Ownership**: Filter queries by workspace ID
 
+## GDPR & Data Integrity Rules
+
+> **When adding or removing a Django model**, always check `backend/users/services.py`:
+> - `UserService.delete_account()` — ensure the new model's rows are deleted (or cascade
+>   correctly) before parent objects are removed. `on_delete=PROTECT` fields must be deleted
+>   in dependency order; otherwise account deletion will raise an `OperationalError`.
+> - `UserService.export_all_data()` — include the new model's data in the JSON export so
+>   users receive a complete copy of their personal data (GDPR Art. 20).
+
+> **When adding new data fields, processing purposes, or third-party integrations**, update
+> the legal pages to keep them accurate:
+> - `frontend/src/pages/PrivacyPolicyPage.tsx` — reflect new data collected or how it is used
+> - `frontend/src/pages/TermsPage.tsx` — reflect new features or usage rules
+
 ## Common Patterns
 
 ### Backend: Workspace-scoped Query

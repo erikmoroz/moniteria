@@ -210,10 +210,26 @@ def create_transaction_endpoint(request, data: TransactionCreate):
 - React hooks and refresh plugins
 - See eslint.config.js for rules
 
+## GDPR & Data Integrity Rules
+
+> **When adding or removing a Django model**, always check `backend/users/services.py` →
+> `UserService.delete_account()` and `UserService.export_all_data()`:
+> - `delete_account`: ensure the new model's data is deleted (or cascades correctly) before
+>   parent objects are removed. Pay attention to `on_delete=PROTECT` fields — they must be
+>   deleted in the right order or they will block deletion.
+> - `export_all_data`: include the new model's data in the JSON export so users receive a
+>   complete copy of their personal data.
+
+> **When adding new data fields, processing purposes, or third-party integrations**, update
+> the legal pages to keep them accurate:
+> - `frontend/src/pages/PrivacyPolicyPage.tsx` — reflect any new data collected or how it is used
+> - `frontend/src/pages/TermsPage.tsx` — reflect any new features or usage rules
+
 ## Documentation
 
 - [README.md](./README.md) - Project overview
 - [docs/architecture.md](./docs/architecture.md) - System architecture
 - [docs/permissions.md](./docs/permissions.md) - Role-based permissions matrix
+- [docs/gdpr/README.md](./docs/gdpr/README.md) - GDPR compliance index
 - [backend/README.md](./backend/README.md) - API endpoints and setup
 - [frontend/README.md](./frontend/README.md) - Components and structure
