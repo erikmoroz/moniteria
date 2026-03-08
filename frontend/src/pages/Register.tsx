@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
-
-const TERMS_VERSION = '1.0';
-const PRIVACY_VERSION = '1.0';
+import { TERMS_VERSION, PRIVACY_VERSION } from '../constants';
 
 export default function Register() {
   const { register, isAuthenticated, isLoading } = useAuth();

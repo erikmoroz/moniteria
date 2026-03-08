@@ -134,7 +134,7 @@ class TestAuthRegister(AuthTestCase):
 
         balances = PeriodBalance.objects.filter(budget_period=period)
         self.assertEqual(balances.count(), 3)
-        currencies = {bal.currency for bal in balances}
+        currencies = {bal.currency.symbol for bal in balances}
         self.assertEqual(currencies, {'PLN', 'EUR', 'USD'})
 
     def test_register_duplicate_email(self):
