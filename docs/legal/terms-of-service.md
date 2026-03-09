@@ -61,7 +61,7 @@ Your use of Monie is also governed by our [Privacy Policy](/privacy), which is i
 
 - You own your financial data entered into Monie
 - You may export your data at any time
-- The Monie software, design, and branding are owned by [Your Company Name]
+- The Monie software, design, and branding are owned by {{ operator_name }}
 
 ## 9. Limitation of Liability
 
@@ -69,8 +69,14 @@ Monie is provided "as is" without warranty of any kind. We are not liable for an
 
 ## 10. Governing Law
 
-These Terms are governed by the laws of [Your Jurisdiction]. Any disputes shall be resolved in the courts of [Your Jurisdiction].
+These Terms are governed by the laws of **{{ jurisdiction }}**. Any disputes shall be resolved in the courts of {{ jurisdiction }}.
 
 ## 11. Contact
 
-For questions about these Terms, contact us at: **[Your Company Name]**, [your-email@example.com]
+For questions about these Terms, contact:
+
+**{{ operator_name }}**{% if contact_address %}
+
+{{ contact_address }}{% endif %}
+
+Email: {{ contact_email }}

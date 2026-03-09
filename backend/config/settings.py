@@ -176,6 +176,14 @@ else:
 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@monie.app')
 
+# Legal document operator settings (for privacy policy, terms of service)
+# Supports both individuals and companies as data controllers
+LEGAL_OPERATOR_NAME = os.getenv('LEGAL_OPERATOR_NAME', 'Your Company Name')
+LEGAL_OPERATOR_TYPE = os.getenv('LEGAL_OPERATOR_TYPE', 'company')  # 'individual' or 'company'
+LEGAL_CONTACT_EMAIL = os.getenv('LEGAL_CONTACT_EMAIL', 'legal@example.com')
+LEGAL_CONTACT_ADDRESS = os.getenv('LEGAL_CONTACT_ADDRESS', '')
+LEGAL_JURISDICTION = os.getenv('LEGAL_JURISDICTION', 'Your Jurisdiction')
+
 # Production security settings
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

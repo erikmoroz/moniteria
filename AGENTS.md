@@ -283,8 +283,16 @@ import { useAuth } from '../contexts/AuthContext'
 
 > **When adding new data fields, processing purposes, or third-party integrations**, update
 > the legal pages to keep them accurate:
-> - `frontend/src/pages/PrivacyPolicyPage.tsx` — reflect new data collected or how it is used
-> - `frontend/src/pages/TermsPage.tsx` — reflect new features or usage rules
+> - `docs/legal/privacy-policy.md` — reflect new data collected or how it is used
+> - `docs/legal/terms-of-service.md` — reflect new features or usage rules
+>
+> These files use Django template syntax with variables from environment settings:
+> - `{{ operator_name }}` — Company or individual name (LEGAL_OPERATOR_NAME)
+> - `{{ contact_email }}` — Contact email (LEGAL_CONTACT_EMAIL)
+> - `{{ jurisdiction }}` — Legal jurisdiction (LEGAL_JURISDICTION)
+> - `{% if is_individual %}...{% endif %}` — Conditional for individuals vs companies
+>
+> After editing, bump the `version` in the YAML frontmatter to trigger re-consent prompts.
 
 ## Common Patterns
 

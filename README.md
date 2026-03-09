@@ -77,6 +77,28 @@ VITE_DEMO_MODE=true
 | Database | PostgreSQL 17                                            |
 | Auth | JWT with bcrypt                                          |
 
+## GDPR Compliance
+
+Monie includes built-in GDPR compliance features:
+
+- **Consent Management** — Track user consent for Terms of Service and Privacy Policy
+- **Right to Erasure** — Users can delete their account and all associated data
+- **Data Export** — Complete data portability in JSON format
+- **Legal Document Templates** — Customizable privacy policy and terms of service
+
+**Self-Hosting Configuration:**
+
+Legal documents support both companies and individuals as data controllers. Configure via environment variables:
+
+```bash
+LEGAL_OPERATOR_NAME="Your Company"     # or individual name
+LEGAL_OPERATOR_TYPE=company            # or 'individual'
+LEGAL_CONTACT_EMAIL=legal@example.com
+LEGAL_JURISDICTION="Your Jurisdiction"
+```
+
+See [GDPR Documentation](docs/gdpr/README.md) for details.
+
 ## Project Structure
 
 ```

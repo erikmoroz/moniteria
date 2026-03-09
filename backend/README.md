@@ -365,6 +365,17 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 DEMO_MODE=false
 ```
 
+Legal document operator settings (optional, customize for your deployment):
+```bash
+LEGAL_OPERATOR_NAME=Your Company Name    # Company or individual name
+LEGAL_OPERATOR_TYPE=company              # 'company' or 'individual'
+LEGAL_CONTACT_EMAIL=legal@example.com    # Contact email
+LEGAL_CONTACT_ADDRESS=                   # Physical address (optional)
+LEGAL_JURISDICTION=Your Jurisdiction     # Legal jurisdiction
+```
+
+These settings customize the operator information in the Privacy Policy and Terms of Service pages. Supports both companies and individuals as data controllers (GDPR compliant).
+
 ### Database Setup
 
 ```bash

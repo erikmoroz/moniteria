@@ -46,8 +46,23 @@ This directory contains documentation for Monie's GDPR compliance implementation
 
 ### Public-Facing Pages
 
-- `/privacy` — Privacy Policy
-- `/terms` — Terms of Service
+- `/privacy` — Privacy Policy (served from `docs/legal/privacy-policy.md`)
+- `/terms` — Terms of Service (served from `docs/legal/terms-of-service.md`)
+
+Both pages are generated from markdown templates with operator information from environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `LEGAL_OPERATOR_NAME` | Company or individual name |
+| `LEGAL_OPERATOR_TYPE` | `'company'` or `'individual'` |
+| `LEGAL_CONTACT_EMAIL` | Contact email address |
+| `LEGAL_CONTACT_ADDRESS` | Physical address (optional) |
+| `LEGAL_JURISDICTION` | Legal jurisdiction |
+
+To update policies:
+1. Edit the markdown file in `docs/legal/`
+2. Bump the `version` in YAML frontmatter
+3. Redeploy — users with old versions will be prompted to re-consent
 
 ## Data Subject Rights Summary
 

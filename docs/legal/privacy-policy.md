@@ -5,7 +5,7 @@ effective_date: "2025-01-01"
 
 ## 1. Introduction
 
-Monie ("we", "our", or "us"), operated by [Your Company Name], provides a personal finance tracking application. This Privacy Policy explains how we collect, use, and protect your personal data when you use Monie.
+Monie ("we", "our", or "us"), operated by **{{ operator_name }}**{% if is_individual %} (an individual){% endif %}, provides a personal finance tracking application. This Privacy Policy explains how we collect, use, and protect your personal data when you use Monie.
 
 By registering for Monie, you agree to the collection and use of information in accordance with this policy.
 
@@ -58,9 +58,9 @@ By registering for Monie, you agree to the collection and use of information in 
 - **Right to Rectification:** Update your profile from *Profile Settings → Profile Information*
 - **Right to Erasure:** Delete your account from *Profile Settings → Account → Delete My Account*
 - **Right to Data Portability:** Download your data in JSON format via the export feature
-- **Right to Withdraw Consent:** Contact us at [your-email@example.com]
+- **Right to Withdraw Consent:** Contact us at {{ contact_email }}
 
-To exercise any rights, use the in-app features above or contact us at [your-email@example.com].
+To exercise any rights, use the in-app features above or contact us at {{ contact_email }}.
 
 ## 7. Data Sharing
 
@@ -81,7 +81,13 @@ We use `localStorage` to store your authentication token. This is strictly funct
 
 ## 10. Contact
 
-For privacy-related questions or to exercise your rights, contact us at: **[Your Company Name]**, [your-email@example.com]
+For privacy-related questions or to exercise your rights, contact:
+
+**{{ operator_name }}**{% if contact_address %}
+
+{{ contact_address }}{% endif %}
+
+Email: {{ contact_email }}
 
 ## 11. Changes to This Policy
 
