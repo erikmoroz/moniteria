@@ -33,8 +33,11 @@ class WorkspaceService:
         BudgetAccount.objects.create(
             workspace=workspace,
             name='General',
+            description='General budget account',
             default_currency=pln,
             is_active=True,
+            display_order=0,
+            created_by=user,
         )
 
         if create_demo:
@@ -51,10 +54,14 @@ class WorkspaceService:
     @db_transaction.atomic
     def delete_workspace(user, workspace: Workspace) -> None:
         """
-        Deletes workspace and all its data (via CASCADE).
+        Deletes workspace and all its data.
         Switches current_workspace for ALL users who had this as their active workspace.
         The requesting user is switched to their next available workspace, or None.
         """
+        from budget_accounts.models import BudgetAccount
+        from currency_exchanges.models import CurrencyExchange
+        from planned_transactions.models import PlannedTransaction
+        from transactions.models import Transaction
         from users.models import User as UserModel
 
         workspace_id = workspace.id
@@ -62,6 +69,12 @@ class WorkspaceService:
         affected_users = list(UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id))
 
         next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+
+        Transaction.objects.filter(currency__workspace_id=workspace_id).delete()
+        PlannedTransaction.objects.filter(currency__workspace_id=workspace_id).delete()
+        CurrencyExchange.objects.filter(from_currency__workspace_id=workspace_id).delete()
+
+        BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
 
         workspace.delete()
 

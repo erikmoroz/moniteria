@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { workspacesApi, workspaceMembersApi } from '../api/client';
@@ -22,7 +22,6 @@ const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefi
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const [newWorkspace, setNewWorkspace] = useState<Workspace | null>(null);
 
   const {
     data: workspace,
@@ -69,8 +68,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const createMutation = useMutation({
     mutationFn: (name: string) => workspacesApi.create({ name }),
-    onSuccess: (newWs) => {
-      setNewWorkspace(newWs);
+    onSuccess: () => {
       queryClient.invalidateQueries();
       localStorage.removeItem('monie_selected_account');
     },
@@ -103,12 +101,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     refetchMembers();
   };
 
-  const currentWorkspace = newWorkspace || workspace || null;
-
   return (
     <WorkspaceContext.Provider
       value={{
-        workspace: currentWorkspace,
+        workspace: workspace || null,
         workspaces,
         currentMembership,
         userRole,

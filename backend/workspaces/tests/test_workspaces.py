@@ -624,3 +624,150 @@ class TestResetMemberPassword(WorkspaceTestCase):
         from common.auth import create_access_token
 
         return create_access_token(user)
+
+
+# =============================================================================
+# Create Workspace Tests
+# =============================================================================
+
+
+class TestCreateWorkspace(APIClientMixin, TestCase):
+    """Tests for POST /api/workspaces/."""
+
+    def setUp(self):
+        """Set up test data."""
+        APIClientMixin.setUp(self)
+        self.user = User.objects.create_user(
+            email='test@example.com',
+            password='testpass123',
+            full_name='Test User',
+        )
+        from common.auth import create_access_token
+
+        self.auth_token = create_access_token(self.user)
+
+    def auth_headers(self):
+        """Get auth headers for authenticated requests."""
+        return {'HTTP_AUTHORIZATION': f'Bearer {self.auth_token}'}
+
+    def test_create_workspace_returns_201(self):
+        """Test that creating workspace returns 201 with WorkspaceOut."""
+        payload = {'name': 'New Workspace'}
+        data = self.post('/api/workspaces/', payload, **self.auth_headers())
+        self.assertStatus(201)
+        self.assertEqual(data['name'], 'New Workspace')
+        self.assertEqual(data['user_role'], 'owner')
+        self.assertIn('id', data)
+
+    def test_create_workspace_sets_current_workspace(self):
+        """Test that creating workspace sets user.current_workspace."""
+        payload = {'name': 'New Workspace'}
+        self.post('/api/workspaces/', payload, **self.auth_headers())
+        self.assertStatus(201)
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.current_workspace.name, 'New Workspace')
+
+    def test_create_workspace_without_auth_fails(self):
+        """Test that creating workspace without authentication fails."""
+        payload = {'name': 'New Workspace'}
+        self.post('/api/workspaces/', payload)
+        self.assertStatus(401)
+
+
+# =============================================================================
+# Delete Workspace Tests
+# =============================================================================
+
+
+class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
+    """Tests for DELETE /api/workspaces/{workspace_id}."""
+
+    def setUp(self):
+        """Set up test data."""
+        APIClientMixin.setUp(self)
+        AuthMixin.setUp(self)
+
+        from workspaces.services import WorkspaceService
+
+        self.second_workspace = WorkspaceService.create_workspace(
+            user=self.user, name='Second Workspace', create_demo=False
+        )
+
+    def test_delete_workspace_returns_204(self):
+        """Test that deleting workspace returns 204."""
+        ws_id = self.second_workspace.id
+        self.delete(f'/api/workspaces/{ws_id}', **self.auth_headers())
+        self.assertStatus(204)
+
+    def test_delete_workspace_as_owner_succeeds(self):
+        """Test that owner can delete workspace."""
+        ws_id = self.second_workspace.id
+        self.delete(f'/api/workspaces/{ws_id}', **self.auth_headers())
+        self.assertStatus(204)
+
+        self.assertFalse(Workspace.objects.filter(id=ws_id).exists())
+
+    def test_delete_workspace_as_non_owner_fails(self):
+        """Test that non-owner cannot delete workspace."""
+        non_owner = User.objects.create_user(
+            email='nonowner@example.com',
+            password='pass123',
+            full_name='Non Owner',
+        )
+        WorkspaceMember.objects.create(
+            workspace=self.second_workspace,
+            user=non_owner,
+            role='admin',
+        )
+
+        from common.auth import create_access_token
+
+        token = create_access_token(non_owner)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.delete(f'/api/workspaces/{self.second_workspace.id}', **headers)
+        self.assertStatus(403)
+
+    def test_delete_nonexistent_workspace_returns_404(self):
+        """Test that deleting nonexistent workspace returns 404."""
+        self.delete('/api/workspaces/99999', **self.auth_headers())
+        self.assertStatus(404)
+
+    def test_delete_workspace_without_auth_fails(self):
+        """Test that deleting workspace without authentication fails."""
+        self.delete(f'/api/workspaces/{self.second_workspace.id}')
+        self.assertStatus(401)
+
+
+# =============================================================================
+# Leave Workspace Edge Case Tests
+# =============================================================================
+
+
+class TestLeaveWorkspaceCurrentWorkspace(WorkspaceTestCase):
+    """Tests for leave workspace affecting current_workspace."""
+
+    def test_leave_current_workspace_switches_to_next(self):
+        """Test that leaving current workspace switches to another available one."""
+        ws_to_leave = Workspace.objects.create(name='To Leave')
+        WorkspaceMember.objects.create(workspace=ws_to_leave, user=self.member_user, role='member')
+
+        token = self.create_token_for_user(self.member_user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.member_user.current_workspace = ws_to_leave
+        self.member_user.save()
+
+        self.post(f'/api/workspaces/{ws_to_leave.id}/members/leave', {}, **headers)
+        self.assertStatus(200)
+
+        self.member_user.refresh_from_db()
+        self.assertIsNotNone(self.member_user.current_workspace)
+        self.assertNotEqual(self.member_user.current_workspace_id, ws_to_leave.id)
+
+    def create_token_for_user(self, user):
+        """Helper to create JWT token for a user."""
+        from common.auth import create_access_token
+
+        return create_access_token(user)

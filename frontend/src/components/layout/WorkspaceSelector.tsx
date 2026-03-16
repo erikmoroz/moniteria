@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { HiCheck, HiPlus, HiCog, HiOfficeBuilding } from 'react-icons/hi'
+import toast from 'react-hot-toast'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
 import type { Workspace } from '../../types'
 
@@ -37,6 +38,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to switch workspace:', error)
+      toast.error('Failed to switch workspace')
     } finally {
       setIsSubmitting(false)
     }
@@ -52,6 +54,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to create workspace:', error)
+      toast.error('Failed to create workspace')
     } finally {
       setIsSubmitting(false)
     }

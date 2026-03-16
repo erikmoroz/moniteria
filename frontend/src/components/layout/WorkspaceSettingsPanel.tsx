@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { HiX, HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
+import { useQueryClient } from '@tanstack/react-query'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
 import { workspacesApi } from '../../api/client'
 import toast from 'react-hot-toast'
@@ -11,10 +12,15 @@ interface WorkspaceSettingsPanelProps {
 
 export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSettingsPanelProps) {
   const { workspace, workspaces, deleteWorkspace } = useWorkspace()
+  const queryClient = useQueryClient()
   const [newName, setNewName] = useState(workspace?.name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    setNewName(workspace?.name || '')
+  }, [workspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isOwner = workspace?.user_role === 'owner'
   const canDelete = isOwner && workspaces.length > 1
@@ -24,6 +30,8 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
     setIsSaving(true)
     try {
       await workspacesApi.update({ name: newName.trim() })
+      await queryClient.invalidateQueries({ queryKey: ['workspace-current'] })
+      await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
       toast.success('Workspace name updated')
       onClose()
     } catch {

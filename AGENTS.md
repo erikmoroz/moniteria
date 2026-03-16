@@ -118,7 +118,8 @@ def list_transactions(request: HttpRequest, budget_period_id: Optional[int] = Qu
 
 @router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction(request: HttpRequest, data: TransactionCreate):
-    return 201, services.create_transaction(request.auth, request.auth.current_workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    return 201, services.create_transaction(request.auth, workspace_id, data)
 ```
 
 For endpoints that don't require an active workspace (e.g., listing all workspaces), use `JWTAuth`:
