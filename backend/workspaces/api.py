@@ -1,5 +1,6 @@
 """Django-Ninja API endpoints for workspaces app."""
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest
 from ninja import Router
@@ -138,11 +139,6 @@ def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
         raise HttpError(404, 'Workspace not found')
 
     require_role(request.auth, workspace_id, [Role.OWNER])
-
-    other_count = Workspace.objects.filter(members__user=request.auth).exclude(id=workspace_id).count()
-    if other_count == 0:
-        raise HttpError(400, 'Cannot delete your only workspace. Create another workspace first.')
-
     WorkspaceService.delete_workspace(user=request.auth, workspace=workspace)
     return 204, None
 
@@ -228,8 +224,10 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
     # Check workspace member limit (15 members maximum)
     current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
 
-    if current_member_count >= 15:
-        return 400, {'detail': 'Workspace member limit reached. Maximum 15 members allowed per workspace.'}
+    if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
+        return 400, {
+            'detail': f'Workspace member limit reached. Maximum {settings.WORKSPACE_MAX_MEMBERS} members allowed per workspace.'
+        }
 
     # Check if user already exists
     existing_user = User.objects.filter(email=data.email).first()
@@ -244,7 +242,7 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
         if existing_member:
             return 400, {'detail': 'User is already a member of this workspace'}
 
-        # Add existing user to workspace
+        # Add existing user to workspace. Do not change their active workspace; they choose when to switch.
         new_member = WorkspaceMember.objects.create(
             workspace_id=workspace_id,
             user_id=existing_user.id,
@@ -265,6 +263,7 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
             email=data.email,
             password=data.password,
             full_name=data.full_name,
+            # New user has no workspace yet — set it to this workspace so they can log in immediately.
             current_workspace_id=workspace_id,
             is_active=True,
         )

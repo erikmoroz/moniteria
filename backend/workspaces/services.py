@@ -1,9 +1,15 @@
 """Business logic for the workspaces app."""
 
 from django.db import transaction as db_transaction
+from django.db.models import Count, Min
 
 from budget_accounts.models import BudgetAccount
-from workspaces.exceptions import CurrencyDuplicateSymbolError, CurrencyNotFoundError
+from workspaces.demo_fixtures import create_demo_fixtures
+from workspaces.exceptions import (
+    CurrencyDuplicateSymbolError,
+    CurrencyNotFoundError,
+    WorkspaceCannotBeDeletedError,
+)
 from workspaces.models import Currency, Role, Workspace, WorkspaceMember
 
 DEFAULT_CURRENCIES = [
@@ -42,8 +48,6 @@ class WorkspaceService:
         )
 
         if create_demo:
-            from core.demo_fixtures import create_demo_fixtures
-
             create_demo_fixtures(workspace_id=workspace.id, user_id=user.id)
 
         user.current_workspace = workspace
@@ -57,7 +61,7 @@ class WorkspaceService:
         """
         Deletes workspace and all its data.
         Switches current_workspace for ALL users who had this as their active workspace.
-        The requesting user is switched to their next available workspace, or None.
+        Raises WorkspaceCannotBeDeletedError if any member has no other workspace.
         """
         from budget_accounts.models import BudgetAccount
         from currency_exchanges.models import CurrencyExchange
@@ -65,16 +69,30 @@ class WorkspaceService:
         from transactions.models import Transaction
         from users.models import User as UserModel
 
+        workspace = Workspace.objects.select_for_update().get(id=workspace.id)
         workspace_id = workspace.id
+
+        members_in_ws = WorkspaceMember.objects.filter(workspace_id=workspace_id).values_list('user_id', flat=True)
+        sole_members = (
+            UserModel.objects.filter(id__in=members_in_ws)
+            .annotate(ws_count=Count('workspace_memberships'))
+            .filter(ws_count=1)
+        )
+        if sole_members.exists():
+            raise WorkspaceCannotBeDeletedError()
 
         affected_users = list(UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id))
 
-        next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+        affected_user_ids = [u.id for u in affected_users] + [user.id]
 
-        # Delete in PROTECT-FK order: Transactions/Exchanges before BudgetAccounts.
-        # BudgetPeriod has PROTECT FKs from Transaction, PlannedTransaction, and
-        # CurrencyExchange, so these must be removed before cascading through
-        # BudgetAccount → BudgetPeriod.
+        next_ws_per_user = (
+            WorkspaceMember.objects.filter(user_id__in=affected_user_ids)
+            .exclude(workspace_id=workspace_id)
+            .values('user_id')
+            .annotate(next_ws_id=Min('workspace_id'))
+        )
+        next_ws_map = {row['user_id']: row['next_ws_id'] for row in next_ws_per_user}
+
         Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
         PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
         CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
@@ -83,13 +101,13 @@ class WorkspaceService:
 
         workspace.delete()
 
-        user.current_workspace = next_workspace
+        user.current_workspace_id = next_ws_map.get(user.id)
         user.save(update_fields=['current_workspace'])
 
         for affected_user in affected_users:
-            next_ws = Workspace.objects.filter(members__user=affected_user).first()
-            affected_user.current_workspace = next_ws
-            affected_user.save(update_fields=['current_workspace'])
+            affected_user.current_workspace_id = next_ws_map.get(affected_user.id)
+
+        UserModel.objects.bulk_update(affected_users, ['current_workspace'])
 
 
 class CurrencyService:

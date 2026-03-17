@@ -148,7 +148,7 @@ class AuthMixin:
 
         # Optionally create demo fixtures
         if self.with_demo_fixtures:
-            from core.demo_fixtures import create_demo_fixtures
+            from workspaces.demo_fixtures import create_demo_fixtures
 
             create_demo_fixtures(
                 workspace_id=self.workspace.id,
