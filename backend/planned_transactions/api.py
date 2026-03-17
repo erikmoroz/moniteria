@@ -5,10 +5,10 @@ from datetime import date
 
 from django.http import HttpRequest, HttpResponse
 from ninja import File, Form, Query, Router
-from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
 from common.auth import WorkspaceJWTAuth
+from common.permissions import require_role
 from common.throttle import validate_file_size
 from planned_transactions.schemas import (
     PlannedTransactionCreate,
@@ -16,6 +16,7 @@ from planned_transactions.schemas import (
     PlannedTransactionUpdate,
 )
 from planned_transactions.services import PlannedTransactionService
+from workspaces.models import WRITE_ROLES
 
 router = Router(tags=['Planned Transactions'])
 
@@ -51,6 +52,7 @@ def create_planned(request: HttpRequest, data: PlannedTransactionCreate):
     """Create a new planned transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
+    require_role(user, workspace.id, WRITE_ROLES)
 
     planned = PlannedTransactionService.create(user, workspace, data)
     return 201, planned
@@ -84,6 +86,7 @@ def import_planned_transactions(
     """Import planned transactions from a JSON file into a budget period (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
+    require_role(user, workspace.id, WRITE_ROLES)
 
     validate_file_size(file, max_size_mb=5)
 
@@ -105,12 +108,7 @@ def import_planned_transactions(
 def get_planned(request: HttpRequest, planned_id: int):
     """Get a specific planned transaction by ID."""
     workspace_id = request.auth.current_workspace_id
-
-    planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
-    if not planned:
-        raise HttpError(404, 'Planned transaction not found')
-
-    return planned
+    return PlannedTransactionService.get_planned(planned_id, workspace_id)
 
 
 @router.put('/{planned_id}', response=PlannedTransactionOut, auth=WorkspaceJWTAuth())
@@ -118,6 +116,7 @@ def update_planned(request: HttpRequest, planned_id: int, data: PlannedTransacti
     """Update a planned transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
+    require_role(user, workspace.id, WRITE_ROLES)
 
     planned = PlannedTransactionService.update(user, workspace, planned_id, data)
     return planned
@@ -128,6 +127,7 @@ def delete_planned(request: HttpRequest, planned_id: int):
     """Delete a planned transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
+    require_role(user, workspace.id, WRITE_ROLES)
 
     PlannedTransactionService.delete(user, workspace, planned_id)
     return 204, None
@@ -142,6 +142,7 @@ def execute_planned(
     """Execute a planned transaction, creating an actual transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
+    require_role(user, workspace.id, WRITE_ROLES)
 
     planned = PlannedTransactionService.execute(user, workspace, planned_id, payment_date)
     return planned

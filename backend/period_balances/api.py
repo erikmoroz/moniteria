@@ -65,14 +65,15 @@ def recalculate_balance(request, data: RecalculateRequest):
 def recalculate_all(request, data: RecalculateAllRequest):
     """Recalculate all currency balances for a period."""
     user = request.auth
-    workspace = user.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    require_role(user, workspace.id, WRITE_ROLES)
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    period = get_workspace_period(data.budget_period_id, workspace.id)
+    period = get_workspace_period(data.budget_period_id, workspace_id)
     if not period:
         return 404, {'detail': 'Budget period not found'}
 
+    workspace = user.current_workspace
     currencies = get_workspace_currencies(workspace)
     results = [PeriodBalanceService.recalculate(data.budget_period_id, currency.symbol) for currency in currencies]
     return 200, results

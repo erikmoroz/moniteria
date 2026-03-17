@@ -76,20 +76,6 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
     )
   }
 
-  if (!workspace) {
-    return (
-      <div className="px-3 py-2">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-        >
-          <HiOfficeBuilding className="h-4 w-4" />
-          No workspace
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -97,9 +83,9 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
         disabled={isLoading}
         className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
       >
-        <HiOfficeBuilding className="h-4 w-4 text-gray-600 flex-shrink-0" />
+        <HiOfficeBuilding className={`h-4 w-4 flex-shrink-0 ${workspace ? 'text-gray-600' : 'text-gray-400'}`} />
         <span className="text-sm font-medium text-gray-700 truncate flex-1 text-left">
-          {workspace.name}
+          {workspace ? workspace.name : 'No workspace'}
         </span>
         <svg
           className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}

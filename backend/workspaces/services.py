@@ -38,6 +38,7 @@ class WorkspaceService:
             is_active=True,
             display_order=0,
             created_by=user,
+            updated_by=user,
         )
 
         if create_demo:

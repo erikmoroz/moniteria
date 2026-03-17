@@ -273,7 +273,7 @@ class TestCreatePlannedTransaction(PlannedTransactionTestCase):
             'planned_date': '2025-03-15',
         }
         self.post('/api/planned-transactions', payload, **self.auth_headers())
-        self.assertStatus(400)
+        self.assertStatus(404)
 
     def test_create_planned_with_invalid_category_fails(self):
         """Test that creating with category from different period fails."""
@@ -516,7 +516,7 @@ class TestExecutePlannedTransaction(PlannedTransactionTestCase):
         self.post(
             f'/api/planned-transactions/{self.planned1.id}/execute?payment_date=2025-03-15', {}, **self.auth_headers()
         )
-        self.assertStatus(400)
+        self.assertStatus(404)
 
     def test_execute_planned_not_found(self):
         """Test executing non-existent planned transaction returns 404."""

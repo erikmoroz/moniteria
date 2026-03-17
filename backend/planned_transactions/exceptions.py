@@ -1,59 +1,48 @@
 """Custom exceptions for planned_transactions app."""
 
-
-class PlannedTransactionError(Exception):
-    """Base exception for planned transaction operations."""
-
-    def __init__(self, message: str, code: str | None = None):
-        self.message = message
-        self.code = code
-        super().__init__(message)
+from common.exceptions import NotFoundError, ValidationError
 
 
-class PlannedTransactionNotFoundError(PlannedTransactionError):
-    """Raised when a planned transaction is not found."""
+class PlannedTransactionNotFoundError(NotFoundError):
+    default_message = 'Planned transaction not found'
 
-    def __init__(self, message: str = 'Planned transaction not found'):
+    def __init__(self, message: str | None = None):
         super().__init__(message, code='not_found')
 
 
-class PlannedTransactionPeriodNotFoundError(PlannedTransactionError):
-    """Raised when a budget period is not found."""
+class PlannedTransactionPeriodNotFoundError(NotFoundError):
+    default_message = 'Budget period not found'
 
-    def __init__(self, message: str = 'Budget period not found'):
+    def __init__(self, message: str | None = None):
         super().__init__(message, code='period_not_found')
 
 
-class PlannedTransactionNoActivePeriodError(PlannedTransactionError):
-    """Raised when no active budget period exists for the date."""
+class PlannedTransactionNoActivePeriodError(NotFoundError):
+    default_message = 'No active budget period for the planned transaction date'
 
-    def __init__(self, message: str = 'No active budget period for the planned transaction date'):
+    def __init__(self, message: str | None = None):
         super().__init__(message, code='no_active_period')
 
 
-class PlannedTransactionCategoryNotFoundError(PlannedTransactionError):
-    """Raised when a category is not found or doesn't belong to the period."""
+class PlannedTransactionCategoryNotFoundError(ValidationError):
+    default_message = 'Category not found or does not belong to the specified budget period'
 
-    def __init__(self, message: str = 'Category not found or does not belong to the specified budget period'):
+    def __init__(self, message: str | None = None):
         super().__init__(message, code='category_not_found')
 
 
-class PlannedTransactionCurrencyNotFoundError(PlannedTransactionError):
-    """Raised when a currency is not found in the workspace."""
-
+class PlannedTransactionCurrencyNotFoundError(ValidationError):
     def __init__(self, currency: str):
         super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
 
 
-class PlannedTransactionAlreadyExecutedError(PlannedTransactionError):
-    """Raised when trying to execute an already executed planned transaction."""
+class PlannedTransactionAlreadyExecutedError(ValidationError):
+    default_message = 'Already executed'
 
-    def __init__(self, message: str = 'Already executed'):
+    def __init__(self, message: str | None = None):
         super().__init__(message, code='already_executed')
 
 
-class PlannedTransactionImportError(PlannedTransactionError):
-    """Raised when planned transaction import data is invalid."""
-
+class PlannedTransactionImportError(ValidationError):
     def __init__(self, message: str):
         super().__init__(message, code='import_error')
