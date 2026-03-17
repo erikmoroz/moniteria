@@ -1,6 +1,5 @@
 """Tests for WorkspaceService and CurrencyService."""
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
@@ -9,12 +8,14 @@ from common.tests.factories import UserFactory
 from currency_exchanges.models import CurrencyExchange
 from planned_transactions.models import PlannedTransaction
 from transactions.models import Transaction
-from workspaces.exceptions import CurrencyDuplicateSymbolError, CurrencyNotFoundError
-from workspaces.factories import WorkspaceFactory
+from workspaces.exceptions import (
+    CurrencyDuplicateSymbolError,
+    CurrencyNotFoundError,
+    WorkspaceCannotBeDeletedError,
+)
+from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 from workspaces.models import Currency, Workspace, WorkspaceMember
 from workspaces.services import CurrencyService, WorkspaceService
-
-User = get_user_model()
 
 
 class TestWorkspaceServiceCreateWorkspace(TestCase):
@@ -61,11 +62,7 @@ class TestWorkspaceServiceCreateWorkspace(TestCase):
 
     def test_sets_user_current_workspace(self):
         """Test that create_workspace sets user.current_workspace to the new workspace."""
-        user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123',
-            full_name='Test User',
-        )
+        user = UserFactory(current_workspace=None)
         self.assertIsNone(user.current_workspace)
 
         workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
@@ -93,6 +90,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         from datetime import date
 
         user = UserFactory()
+        WorkspaceService.create_workspace(user=user, name='Fallback', create_demo=False)
         workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
 
         account = BudgetAccount.objects.filter(workspace=workspace).first()
@@ -167,15 +165,23 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.current_workspace, ws1)
 
-    def test_switches_user_to_none_if_no_other_workspace(self):
-        """Test that delete_workspace sets current_workspace to None if no other workspace."""
+    def test_delete_workspace_blocked_when_owner_has_no_other_workspace(self):
+        """Test that delete_workspace raises when owner has no other workspace."""
         user = UserFactory()
         workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
 
-        WorkspaceService.delete_workspace(user=user, workspace=workspace)
+        with self.assertRaises(WorkspaceCannotBeDeletedError):
+            WorkspaceService.delete_workspace(user=user, workspace=workspace)
 
-        user.refresh_from_db()
-        self.assertIsNone(user.current_workspace)
+    def test_delete_workspace_blocked_when_member_has_only_this_workspace(self):
+        """Deletion is blocked if any member has no other workspace."""
+        owner = UserFactory()
+        member = UserFactory()
+        ws = WorkspaceService.create_workspace(user=owner, name='WS', create_demo=False)
+        WorkspaceMemberFactory(workspace=ws, user=member, role='member')
+        with self.assertRaises(WorkspaceCannotBeDeletedError):
+            WorkspaceService.delete_workspace(user=owner, workspace=ws)
+        self.assertTrue(Workspace.objects.filter(id=ws.id).exists())
 
     def test_switches_all_affected_users(self):
         """Test that delete_workspace switches ALL users who had this as current workspace."""
@@ -184,7 +190,10 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
 
         workspace = WorkspaceService.create_workspace(user=owner, name='Test Workspace', create_demo=False)
 
-        WorkspaceMember.objects.create(workspace=workspace, user=member, role='member')
+        fallback = WorkspaceService.create_workspace(user=owner, name='Fallback', create_demo=False)
+        WorkspaceMemberFactory(workspace=fallback, user=member, role='member')
+
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
         member.current_workspace = workspace
         member.save()
 
@@ -195,8 +204,8 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
 
         owner.refresh_from_db()
         member.refresh_from_db()
-        self.assertIsNone(owner.current_workspace)
-        self.assertIsNone(member.current_workspace)
+        self.assertEqual(owner.current_workspace, fallback)
+        self.assertEqual(member.current_workspace, fallback)
 
 
 class TestCurrencyService(TestCase):

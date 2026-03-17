@@ -1,14 +1,11 @@
 """Tests for workspaces and workspace_members API endpoints."""
 
-# Import User model at module level for use in tests
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from common.tests.factories import UserFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
+from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 from workspaces.models import Workspace, WorkspaceMember
-
-User = get_user_model()
-
 
 # =============================================================================
 # Base Test Class
@@ -23,46 +20,38 @@ class WorkspaceTestCase(APIClientMixin, AuthMixin, TestCase):
         APIClientMixin.setUp(self)
         AuthMixin.setUp(self)
 
-        # Create additional users for testing
-        self.admin_user = User.objects.create_user(
+        self.admin_user = UserFactory(
             email='admin@example.com',
-            password='adminpass123',
-            full_name='Admin User',
             current_workspace=self.workspace,
         )
-        WorkspaceMember.objects.create(
+        WorkspaceMemberFactory(
             workspace=self.workspace,
             user=self.admin_user,
             role='admin',
         )
 
-        self.member_user = User.objects.create_user(
+        self.member_user = UserFactory(
             email='member@example.com',
-            password='memberpass123',
-            full_name='Member User',
             current_workspace=self.workspace,
         )
-        WorkspaceMember.objects.create(
+        WorkspaceMemberFactory(
             workspace=self.workspace,
             user=self.member_user,
             role='member',
         )
 
-        self.viewer_user = User.objects.create_user(
+        self.viewer_user = UserFactory(
             email='viewer@example.com',
-            password='viewerpass123',
-            full_name='Viewer User',
             current_workspace=self.workspace,
         )
-        WorkspaceMember.objects.create(
+        WorkspaceMemberFactory(
             workspace=self.workspace,
             user=self.viewer_user,
             role='viewer',
         )
 
-        # Create another workspace for testing
-        self.other_workspace = Workspace.objects.create(name='Other Workspace')
-        WorkspaceMember.objects.create(
+        self.other_workspace = WorkspaceFactory(name='Other Workspace')
+        WorkspaceMemberFactory(
             workspace=self.other_workspace,
             user=self.user,
             role='admin',
@@ -197,7 +186,7 @@ class TestSwitchWorkspace(WorkspaceTestCase):
     def test_switch_to_workspace_without_access_fails(self):
         """Test that switching to workspace without access fails."""
         # Create a workspace the user is not a member of
-        forbidden_workspace = Workspace.objects.create(name='Forbidden Workspace')
+        forbidden_workspace = WorkspaceFactory(name='Forbidden Workspace')
 
         self.post(f'/api/workspaces/{forbidden_workspace.id}/switch', {}, **self.auth_headers())
         self.assertStatus(403)
@@ -234,11 +223,7 @@ class TestListWorkspaceMembers(WorkspaceTestCase):
     def test_list_members_without_access_fails(self):
         """Test that listing members without workspace access fails."""
         # Create a user who is not a member of the workspace
-        non_member = User.objects.create_user(
-            email='nonmember@example.com',
-            password='pass123',
-            current_workspace=None,
-        )
+        non_member = UserFactory(current_workspace=None)
         token = self.create_token_for_user(non_member)
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
 
@@ -289,10 +274,7 @@ class TestAddMemberToWorkspace(WorkspaceTestCase):
 
     def test_add_existing_user_as_member(self):
         """Test adding an existing user to workspace."""
-        User.objects.create_user(
-            email='existing@example.com',
-            password='pass123',
-        )
+        UserFactory(email='existing@example.com')
 
         initial_member_count = WorkspaceMember.objects.filter(workspace_id=self.workspace.id).count()
 
@@ -358,11 +340,25 @@ class TestAddMemberToWorkspace(WorkspaceTestCase):
 
     def test_add_existing_user_without_password_succeeds(self):
         """Existing user can be added without providing a password."""
-        User.objects.create_user(email='nopwd@example.com', password='pass123')
+        UserFactory(email='nopwd@example.com')
         payload = {'email': 'nopwd@example.com', 'role': 'viewer'}
         data = self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload, **self.auth_headers())
         self.assertStatus(201)
         self.assertFalse(data['is_new_user'])
+
+    def test_add_existing_user_does_not_change_their_current_workspace(self):
+        """Adding an existing user to a workspace does not change their current_workspace."""
+        existing = UserFactory(email='e@example.com')
+        original_ws = WorkspaceFactory(name='Original')
+        existing.current_workspace = original_ws
+        existing.save()
+
+        payload = {'email': 'e@example.com', 'role': 'viewer'}
+        self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload, **self.auth_headers())
+        self.assertStatus(201)
+
+        existing.refresh_from_db()
+        self.assertEqual(existing.current_workspace, original_ws)
 
     def test_add_new_user_without_password_fails(self):
         """New user cannot be created without a password."""
@@ -665,11 +661,7 @@ class TestCreateWorkspace(APIClientMixin, TestCase):
     def setUp(self):
         """Set up test data."""
         APIClientMixin.setUp(self)
-        self.user = User.objects.create_user(
-            email='test@example.com',
-            password='testpass123',
-            full_name='Test User',
-        )
+        self.user = UserFactory()
         from common.auth import create_access_token
 
         self.auth_token = create_access_token(self.user)
@@ -738,12 +730,8 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
 
     def test_delete_workspace_as_non_owner_fails(self):
         """Test that non-owner cannot delete workspace."""
-        non_owner = User.objects.create_user(
-            email='nonowner@example.com',
-            password='pass123',
-            full_name='Non Owner',
-        )
-        WorkspaceMember.objects.create(
+        non_owner = UserFactory(current_workspace=self.second_workspace)
+        WorkspaceMemberFactory(
             workspace=self.second_workspace,
             user=non_owner,
             role='admin',
@@ -770,13 +758,8 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
     def test_delete_only_workspace_returns_400(self):
         """Test that deleting the user's only workspace returns 400."""
         # Use a user with only one workspace
-        single_ws_user = User.objects.create_user(
-            email='single@example.com',
-            password='pass123',
-            full_name='Single Workspace User',
-            current_workspace=self.workspace,
-        )
-        WorkspaceMember.objects.create(
+        single_ws_user = UserFactory(current_workspace=self.workspace)
+        WorkspaceMemberFactory(
             workspace=self.workspace,
             user=single_ws_user,
             role='owner',
@@ -806,8 +789,8 @@ class TestLeaveWorkspaceCurrentWorkspace(WorkspaceTestCase):
 
     def test_leave_current_workspace_switches_to_next(self):
         """Test that leaving current workspace switches to another available one."""
-        ws_to_leave = Workspace.objects.create(name='To Leave')
-        WorkspaceMember.objects.create(workspace=ws_to_leave, user=self.member_user, role='member')
+        ws_to_leave = WorkspaceFactory(name='To Leave')
+        WorkspaceMemberFactory(workspace=ws_to_leave, user=self.member_user, role='member')
 
         token = self.create_token_for_user(self.member_user)
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
