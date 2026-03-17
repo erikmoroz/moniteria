@@ -100,7 +100,7 @@ def list_workspaces(request: HttpRequest):
 @router.post('/', response={201: WorkspaceOut}, auth=JWTAuth())
 def create_workspace_endpoint(request: HttpRequest, data: WorkspaceCreate):
     """Create a new workspace. User becomes owner and is auto-switched to it."""
-    workspace = WorkspaceService.create_workspace(user=request.auth, name=data.name)
+    workspace = WorkspaceService.create_workspace(user=request.auth, name=data.name, create_demo=False)
     workspace.user_role = Role.OWNER
     return 201, workspace
 
@@ -138,6 +138,10 @@ def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
         raise HttpError(404, 'Workspace not found')
 
     require_role(request.auth, workspace_id, [Role.OWNER])
+
+    other_count = Workspace.objects.filter(members__user=request.auth).exclude(id=workspace_id).count()
+    if other_count == 0:
+        raise HttpError(400, 'Cannot delete your only workspace. Create another workspace first.')
 
     WorkspaceService.delete_workspace(user=request.auth, workspace=workspace)
     return 204, None

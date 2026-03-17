@@ -17,7 +17,7 @@ DEFAULT_CURRENCIES = [
 class WorkspaceService:
     @staticmethod
     @db_transaction.atomic
-    def create_workspace(user, name: str, create_demo: bool = True) -> Workspace:
+    def create_workspace(user, name: str, create_demo: bool = False) -> Workspace:
         """
         Creates a workspace with full initial setup:
         - WorkspaceMember (owner role)
@@ -71,9 +71,13 @@ class WorkspaceService:
 
         next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
 
-        Transaction.objects.filter(currency__workspace_id=workspace_id).delete()
-        PlannedTransaction.objects.filter(currency__workspace_id=workspace_id).delete()
-        CurrencyExchange.objects.filter(from_currency__workspace_id=workspace_id).delete()
+        # Delete in PROTECT-FK order: Transactions/Exchanges before BudgetAccounts.
+        # BudgetPeriod has PROTECT FKs from Transaction, PlannedTransaction, and
+        # CurrencyExchange, so these must be removed before cascading through
+        # BudgetAccount → BudgetPeriod.
+        Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+        PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+        CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
 
         BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
 

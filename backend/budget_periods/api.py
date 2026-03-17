@@ -97,7 +97,7 @@ def create_period(request, data: BudgetPeriodCreate):
         )
 
         # Automatically create period balances for all currencies
-        currencies = get_workspace_currencies(workspace)
+        currencies = get_workspace_currencies(workspace.id)
         PeriodBalance.objects.bulk_create(
             [
                 PeriodBalance(
@@ -174,6 +174,8 @@ def copy_period(request, period_id: int, data: BudgetPeriodCopy):
     Planned transactions will have their dates adjusted and status set to pending.
     """
     user = request.auth
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
     workspace = user.current_workspace
 
     new_period = BudgetPeriodService.copy(user, workspace, period_id, data)

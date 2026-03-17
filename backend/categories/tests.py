@@ -27,12 +27,14 @@ class CategoriesTestCase(AuthMixin, APIClientMixin, TestCase):
     def setUp(self):
         """Set up authenticated user and create test data."""
         super().setUp()
+        self.currencies = {c.symbol: c for c in self.workspace.currencies.all()}
+
         # Create an additional budget account for testing
         self.other_account = BudgetAccount.objects.create(
             workspace=self.workspace,
             name='Other Account',
             description='Another budget account',
-            default_currency='USD',
+            default_currency=self.currencies['USD'],
             is_active=True,
             display_order=1,
             created_by=self.user,
@@ -122,9 +124,9 @@ class TestListCategories(CategoriesTestCase):
         self.assertStatus(400)
 
     def test_list_categories_from_other_workspace_fails(self):
-        """Test that listing categories from another workspace fails."""
+        """Test that listing categories from another workspace returns empty list."""
         # Create another workspace with period and category
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -141,10 +143,11 @@ class TestListCategories(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -162,9 +165,10 @@ class TestListCategories(CategoriesTestCase):
             created_by=other_user,
         )
 
-        # Try to access with current user
-        self.get(f'/api/categories?budget_period_id={other_period.id}', **self.auth_headers())
-        self.assertStatus(404)
+        # Try to access with current user — should return empty list, not other workspace's categories
+        data = self.get(f'/api/categories?budget_period_id={other_period.id}', **self.auth_headers())
+        self.assertStatus(200)
+        self.assertEqual(data, [])
 
     def test_list_categories_without_auth_fails(self):
         """Test that listing categories without authentication fails."""
@@ -194,7 +198,7 @@ class TestGetCategory(CategoriesTestCase):
 
     def test_get_category_from_other_workspace_fails(self):
         """Test that getting a category from another workspace fails."""
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -211,10 +215,11 @@ class TestGetCategory(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -291,7 +296,7 @@ class TestCreateCategory(CategoriesTestCase):
 
     def test_create_category_with_period_from_other_workspace_fails(self):
         """Test that creating a category with a period from another workspace fails."""
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -308,10 +313,11 @@ class TestCreateCategory(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -389,7 +395,7 @@ class TestUpdateCategory(CategoriesTestCase):
 
     def test_update_category_from_other_workspace_fails(self):
         """Test that updating a category from another workspace fails."""
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -406,10 +412,11 @@ class TestUpdateCategory(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -469,7 +476,7 @@ class TestDeleteCategory(CategoriesTestCase):
 
     def test_delete_category_from_other_workspace_fails(self):
         """Test that deleting a category from another workspace fails."""
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -486,10 +493,11 @@ class TestDeleteCategory(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -554,7 +562,7 @@ class TestExportCategories(CategoriesTestCase):
 
     def test_export_categories_from_other_workspace_fails(self):
         """Test that exporting categories from another workspace fails."""
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -571,10 +579,11 @@ class TestExportCategories(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -722,7 +731,7 @@ class TestImportCategories(CategoriesTestCase):
 
     def test_import_categories_from_other_workspace_fails(self):
         """Test that importing categories to another workspace's period fails."""
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.models import Currency, Workspace, WorkspaceMember
 
         other_workspace = Workspace.objects.create(name='Other Workspace')
         other_user = User.objects.create_user(
@@ -739,10 +748,11 @@ class TestImportCategories(CategoriesTestCase):
             role='owner',
         )
 
+        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 

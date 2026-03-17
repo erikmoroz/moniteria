@@ -33,8 +33,9 @@ def get_budget_account(request: HttpRequest, account_id: int):
 def create_budget_account(request: HttpRequest, data: BudgetAccountCreate):
     """Create a new budget account (requires owner or admin role)."""
     user = request.auth
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, ADMIN_ROLES)
     workspace = user.current_workspace
-    require_role(user, workspace.id, ADMIN_ROLES)
     account = BudgetAccountService.create(user, workspace, data)
     return 201, account
 
@@ -43,8 +44,9 @@ def create_budget_account(request: HttpRequest, data: BudgetAccountCreate):
 def update_budget_account(request: HttpRequest, account_id: int, data: BudgetAccountUpdate):
     """Update a budget account (requires owner or admin role)."""
     user = request.auth
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, ADMIN_ROLES)
     workspace = user.current_workspace
-    require_role(user, workspace.id, ADMIN_ROLES)
     return BudgetAccountService.update(user, workspace, account_id, data)
 
 

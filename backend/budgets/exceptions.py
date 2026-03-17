@@ -10,11 +10,7 @@ class BudgetNotFoundError(NotFoundError):
         super().__init__(message, code='not_found')
 
 
-class BudgetPeriodNotFoundError(NotFoundError):
-    default_message = 'Budget period not found'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='period_not_found')
+from budget_periods.exceptions import BudgetPeriodNotFoundError  # noqa: E402, F401
 
 
 class BudgetCategoryNotFoundError(ValidationError):

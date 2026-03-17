@@ -2,7 +2,7 @@
 
 from ninja.errors import HttpError
 
-from workspaces.models import Role, WorkspaceMember
+from workspaces.models import WorkspaceMember
 
 
 def require_role(user, workspace_id: int, allowed_roles: list[str]) -> str:

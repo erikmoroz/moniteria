@@ -39,7 +39,8 @@ def export_categories(
     budget_period_id: int = Query(...),
 ):
     """Export categories from a budget period as JSON."""
-    return CategoryService.export(request.auth.current_workspace, budget_period_id)
+    workspace_id = request.auth.current_workspace_id
+    return CategoryService.export(workspace_id, budget_period_id)
 
 
 @router.post('/import', response={201: dict, 400: dict}, auth=WorkspaceJWTAuth())
@@ -50,8 +51,8 @@ def import_categories(
 ):
     """Import categories from a JSON file into a budget period."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
     validate_file_size(file, max_size_mb=5)
 
@@ -63,7 +64,7 @@ def import_categories(
     except json.JSONDecodeError:
         return 400, {'detail': 'Invalid JSON file.'}
 
-    count = CategoryService.import_data(user, workspace, budget_period_id, data)
+    count = CategoryService.import_data(user, workspace_id, budget_period_id, data)
 
     if count == 0:
         return 201, {'message': 'No new categories to import.'}

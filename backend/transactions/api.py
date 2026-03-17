@@ -56,7 +56,8 @@ def export_transactions(
     type: str | None = Query(None, pattern=r'^(expense|income)$'),
 ):
     """Export transactions from a budget period as JSON."""
-    export_data = TransactionService.export(request.auth.current_workspace, budget_period_id, type)
+    workspace_id = request.auth.current_workspace_id
+    export_data = TransactionService.export(workspace_id, budget_period_id, type)
     response = HttpResponse(json.dumps(export_data, indent=2), content_type='application/json')
     response['Content-Disposition'] = f'attachment; filename=transactions_export_{budget_period_id}.json'
     return response
@@ -70,8 +71,8 @@ def import_transactions(
 ):
     """Import transactions from a JSON file into a budget period (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
     validate_file_size(file, max_size_mb=5)
 
@@ -82,7 +83,7 @@ def import_transactions(
     except Exception as e:
         return 400, {'detail': f'Invalid data format: {e}'}
 
-    count = TransactionService.import_data(user, workspace, budget_period_id, data)
+    count = TransactionService.import_data(user, workspace_id, budget_period_id, data)
 
     if count == 0:
         return 201, {'message': 'No new transactions to import.'}

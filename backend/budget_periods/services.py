@@ -43,7 +43,7 @@ class BudgetPeriodService:
         )
 
         # Create period balances for all currencies
-        currencies = get_workspace_currencies(workspace)
+        currencies = get_workspace_currencies(workspace.id)
         PeriodBalance.objects.bulk_create(
             [
                 PeriodBalance(

@@ -73,8 +73,7 @@ def recalculate_all(request, data: RecalculateAllRequest):
     if not period:
         return 404, {'detail': 'Budget period not found'}
 
-    workspace = user.current_workspace
-    currencies = get_workspace_currencies(workspace)
+    currencies = get_workspace_currencies(workspace_id)
     results = [PeriodBalanceService.recalculate(data.budget_period_id, currency.symbol) for currency in currencies]
     return 200, results
 
@@ -95,6 +94,8 @@ def get_balance(request, balance_id: int):
 def update_balance(request, balance_id: int, data: PeriodBalanceUpdate):
     """Update a period balance (opening balance)."""
     user = request.auth
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
     workspace = user.current_workspace
 
     balance = PeriodBalanceService.update_opening_balance(user, workspace, balance_id, data)

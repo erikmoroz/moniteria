@@ -4,9 +4,13 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
+from budget_periods.models import BudgetPeriod
 from common.tests.factories import UserFactory
-from workspaces.factories import WorkspaceFactory
+from currency_exchanges.models import CurrencyExchange
+from planned_transactions.models import PlannedTransaction
+from transactions.models import Transaction
 from workspaces.exceptions import CurrencyDuplicateSymbolError, CurrencyNotFoundError
+from workspaces.factories import WorkspaceFactory
 from workspaces.models import Currency, Workspace, WorkspaceMember
 from workspaces.services import CurrencyService, WorkspaceService
 
@@ -85,17 +89,69 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
     """Tests for WorkspaceService.delete_workspace()."""
 
     def test_deletes_workspace_and_all_data(self):
-        """Test that delete_workspace cascades all data."""
+        """Test that delete_workspace cascades all data including transactions."""
+        from datetime import date
+
         user = UserFactory()
         workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
 
+        account = BudgetAccount.objects.filter(workspace=workspace).first()
+        pln = Currency.objects.get(workspace=workspace, symbol='PLN')
+        period = BudgetPeriod.objects.create(
+            budget_account=account,
+            name='Jan',
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 31),
+            created_by=user,
+            updated_by=user,
+        )
+
+        transaction = Transaction.objects.create(
+            budget_period=period,
+            date=date(2025, 1, 15),
+            description='Test Transaction',
+            amount=100,
+            currency=pln,
+            type='expense',
+            created_by=user,
+            updated_by=user,
+        )
+        planned = PlannedTransaction.objects.create(
+            budget_period=period,
+            name='Test Planned',
+            amount=50,
+            currency=pln,
+            planned_date=date(2025, 1, 15),
+            status='pending',
+            created_by=user,
+            updated_by=user,
+        )
+        exchange = CurrencyExchange.objects.create(
+            budget_period=period,
+            date=date(2025, 1, 10),
+            description='Test Exchange',
+            from_currency=pln,
+            from_amount=100,
+            to_currency=pln,
+            to_amount=25,
+            created_by=user,
+            updated_by=user,
+        )
+
         workspace_id = workspace.id
+        transaction_id = transaction.id
+        planned_id = planned.id
+        exchange_id = exchange.id
+
         WorkspaceService.delete_workspace(user=user, workspace=workspace)
 
         self.assertFalse(Workspace.objects.filter(id=workspace_id).exists())
         self.assertFalse(WorkspaceMember.objects.filter(workspace_id=workspace_id).exists())
         self.assertFalse(Currency.objects.filter(workspace_id=workspace_id).exists())
         self.assertFalse(BudgetAccount.objects.filter(workspace_id=workspace_id).exists())
+        self.assertFalse(Transaction.objects.filter(id=transaction_id).exists())
+        self.assertFalse(PlannedTransaction.objects.filter(id=planned_id).exists())
+        self.assertFalse(CurrencyExchange.objects.filter(id=exchange_id).exists())
 
     def test_switches_user_to_next_workspace(self):
         """Test that delete_workspace switches requesting user to next workspace."""

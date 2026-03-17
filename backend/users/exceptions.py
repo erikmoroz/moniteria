@@ -22,7 +22,7 @@ class UserConsentNotFoundError(NotFoundError):
         super().__init__(message, code='consent_not_found')
 
 
-class UserValidationValidationError(ValidationError):
+class UserValidationError(ValidationError):
     def __init__(self, message: str):
         super().__init__(message, code='validation_error')
 

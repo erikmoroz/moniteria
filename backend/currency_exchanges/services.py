@@ -172,9 +172,9 @@ class CurrencyExchangeService:
         exchange.delete()
 
     @staticmethod
-    def export(workspace, period_id: int) -> list[dict]:
+    def export(workspace_id: int, period_id: int) -> list[dict]:
         """Return serialisable exchange data for a period."""
-        period = get_workspace_period(period_id, workspace.id)
+        period = get_workspace_period(period_id, workspace_id)
         if not period:
             raise CurrencyExchangePeriodNotFoundError()
 
@@ -198,13 +198,15 @@ class CurrencyExchangeService:
 
     @staticmethod
     @db_transaction.atomic
-    def import_data(user, workspace, period_id: int, data: list) -> int:
+    def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create exchanges from parsed JSON data. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace.id)
+        period = get_workspace_period(period_id, workspace_id)
         if not period:
             raise CurrencyExchangePeriodNotFoundError()
 
-        currency_map = {c.symbol: c for c in workspace.currencies.all()}
+        from workspaces.models import Currency
+
+        currency_map = {c.symbol: c for c in Currency.objects.filter(workspace_id=workspace_id)}
 
         new_exchanges = []
         for item in data:

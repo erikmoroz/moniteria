@@ -66,9 +66,9 @@ def export_planned_transactions(
     status: str | None = Query(None),
 ):
     """Export planned transactions from a budget period as JSON."""
-    workspace = request.auth.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    export_data = PlannedTransactionService.export(workspace, budget_period_id, status)
+    export_data = PlannedTransactionService.export(workspace_id, budget_period_id, status)
     response = HttpResponse(
         json.dumps(export_data, indent=2),
         content_type='application/json',
@@ -85,8 +85,8 @@ def import_planned_transactions(
 ):
     """Import planned transactions from a JSON file into a budget period (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
     validate_file_size(file, max_size_mb=5)
 
@@ -97,7 +97,7 @@ def import_planned_transactions(
     except Exception as e:
         return 400, {'error': f'Invalid data format: {e}'}
 
-    count = PlannedTransactionService.import_data(user, workspace, budget_period_id, data)
+    count = PlannedTransactionService.import_data(user, workspace_id, budget_period_id, data)
     if count == 0:
         return 201, {'message': 'No new planned transactions to import.'}
     return 201, {'message': f'Successfully imported {count} new planned transactions.'}

@@ -47,6 +47,10 @@ class CategoryService:
         if budget_period_id is None:
             return []
 
+        period = get_workspace_period(budget_period_id, workspace_id)
+        if not period:
+            return []
+
         return list(Category.objects.filter(budget_period_id=budget_period_id))
 
     @staticmethod
@@ -86,18 +90,18 @@ class CategoryService:
         category.delete()
 
     @staticmethod
-    def export(workspace, period_id: int) -> list[str]:
+    def export(workspace_id: int, period_id: int) -> list[str]:
         """Return category names for a period."""
-        period = get_workspace_period(period_id, workspace.id)
+        period = get_workspace_period(period_id, workspace_id)
         if not period:
             raise CategoryPeriodNotFoundError()
 
         return list(Category.objects.filter(budget_period_id=period_id).values_list('name', flat=True))
 
     @staticmethod
-    def import_data(user, workspace, period_id: int, data: list) -> int:
+    def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create categories from a list of name strings. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace.id)
+        period = get_workspace_period(period_id, workspace_id)
         if not period:
             raise CategoryPeriodNotFoundError()
 

@@ -172,9 +172,9 @@ class PlannedTransactionService:
         return planned
 
     @staticmethod
-    def export(workspace, period_id: int, status: str | None = None) -> list[dict]:
+    def export(workspace_id: int, period_id: int, status: str | None = None) -> list[dict]:
         """Return serialisable planned transaction data for a period."""
-        period = get_workspace_period(period_id, workspace.id)
+        period = get_workspace_period(period_id, workspace_id)
         if not period:
             raise PlannedTransactionPeriodNotFoundError()
 
@@ -194,13 +194,15 @@ class PlannedTransactionService:
         ]
 
     @staticmethod
-    def import_data(user, workspace, period_id: int, data: list) -> int:
+    def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create planned transactions from parsed JSON data. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace.id)
+        period = get_workspace_period(period_id, workspace_id)
         if not period:
             raise PlannedTransactionPeriodNotFoundError()
 
-        currency_map = {c.symbol: c for c in workspace.currencies.all()}
+        from workspaces.models import Currency
+
+        currency_map = {c.symbol: c for c in Currency.objects.filter(workspace_id=workspace_id)}
 
         new_transactions = []
         for item in data:

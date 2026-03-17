@@ -767,6 +767,34 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
         self.delete(f'/api/workspaces/{self.second_workspace.id}')
         self.assertStatus(401)
 
+    def test_delete_only_workspace_returns_400(self):
+        """Test that deleting the user's only workspace returns 400."""
+        # Use a user with only one workspace
+        single_ws_user = User.objects.create_user(
+            email='single@example.com',
+            password='pass123',
+            full_name='Single Workspace User',
+            current_workspace=self.workspace,
+        )
+        WorkspaceMember.objects.create(
+            workspace=self.workspace,
+            user=single_ws_user,
+            role='owner',
+        )
+
+        from common.auth import create_access_token
+
+        token = create_access_token(single_ws_user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        # Delete the second workspace first (owned by self.user, not single_ws_user)
+        self.delete(f'/api/workspaces/{self.second_workspace.id}', **self.auth_headers())
+        self.assertStatus(204)
+
+        # Now single_ws_user only has self.workspace — deleting it should fail
+        self.delete(f'/api/workspaces/{self.workspace.id}', **headers)
+        self.assertStatus(400)
+
 
 # =============================================================================
 # Leave Workspace Edge Case Tests

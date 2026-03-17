@@ -46,7 +46,8 @@ def export_exchanges(
     budget_period_id: int = Query(...),
 ):
     """Export currency exchanges from a budget period to a JSON file."""
-    export_data = CurrencyExchangeService.export(request.auth.current_workspace, budget_period_id)
+    workspace_id = request.auth.current_workspace_id
+    export_data = CurrencyExchangeService.export(workspace_id, budget_period_id)
     response = HttpResponse(
         json.dumps(export_data, indent=2),
         content_type='application/json',
@@ -63,8 +64,8 @@ def import_exchanges(
 ):
     """Import currency exchanges from a JSON file into a budget period (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
     validate_file_size(file, max_size_mb=5)
 
@@ -75,7 +76,7 @@ def import_exchanges(
     except Exception as e:
         return 400, {'detail': f'Invalid data format: {e}'}
 
-    count = CurrencyExchangeService.import_data(user, workspace, budget_period_id, data)
+    count = CurrencyExchangeService.import_data(user, workspace_id, budget_period_id, data)
 
     if count == 0:
         return 201, {'message': 'No new currency exchanges to import.'}

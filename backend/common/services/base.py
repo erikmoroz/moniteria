@@ -41,6 +41,8 @@ def get_or_create_period_balance(period_id: int, currency, user=None) -> PeriodB
     return balance
 
 
-def get_workspace_currencies(workspace):
+def get_workspace_currencies(workspace_id: int) -> list:
     """Get list of Currency objects for a workspace."""
-    return list(workspace.currencies.all())
+    from workspaces.models import Currency
+
+    return list(Currency.objects.filter(workspace_id=workspace_id))
