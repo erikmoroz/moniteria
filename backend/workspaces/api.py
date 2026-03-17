@@ -6,6 +6,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from common.auth import JWTAuth, WorkspaceJWTAuth
+from common.permissions import require_role
 from core.schemas import MessageOut
 from workspaces.models import ADMIN_ROLES, Role, Workspace, WorkspaceMember
 from workspaces.schemas import (
@@ -33,10 +34,10 @@ User = get_user_model()
 @router.get('/currencies', response=list[CurrencyOut], auth=WorkspaceJWTAuth())
 def list_currencies(request: HttpRequest):
     """List all currencies for the current workspace."""
-    return CurrencyService.list_currencies(request.auth.current_workspace)
+    return CurrencyService.list_currencies(request.auth.current_workspace_id)
 
 
-@router.post('/currencies', response={201: CurrencyOut, 400: dict}, auth=WorkspaceJWTAuth())
+@router.post('/currencies', response={201: CurrencyOut}, auth=WorkspaceJWTAuth())
 def create_currency(request: HttpRequest, data: CurrencyCreate):
     """Create a new currency for the current workspace."""
     workspace = request.auth.current_workspace
@@ -59,17 +60,8 @@ def delete_currency(request: HttpRequest, currency_id: int):
 # =============================================================================
 
 
-def get_user_workspace_role(user_id: int, workspace_id: int) -> str | None:
-    """Helper to get user's role in a specific workspace."""
-    member = WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user_id=user_id,
-    ).first()
-    return member.role if member else None
-
-
 def validate_workspace_access(workspace_id: int, user) -> Workspace:
-    """Validate that user has access to the workspace."""
+    """Validate that the workspace exists and the user is a member of it."""
     workspace = Workspace.objects.filter(id=workspace_id).first()
     if not workspace:
         raise HttpError(404, 'Workspace not found')
@@ -82,16 +74,6 @@ def validate_workspace_access(workspace_id: int, user) -> Workspace:
         raise HttpError(403, 'Access denied to this workspace')
 
     return workspace
-
-
-def require_role(user, workspace_id: int, allowed_roles: list[str]) -> str:
-    """Get user's role and raise error if not in allowed_roles."""
-    role = get_user_workspace_role(user.id, workspace_id)
-    if not role:
-        raise HttpError(403, 'Not a member of this workspace')
-    if role not in allowed_roles:
-        raise HttpError(403, f'Insufficient permissions. Required: {", ".join(allowed_roles)}. Your role: {role}')
-    return role
 
 
 # =============================================================================
@@ -127,19 +109,24 @@ def create_workspace_endpoint(request: HttpRequest, data: WorkspaceCreate):
 @router.get('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
 def get_current_workspace_info(request: HttpRequest):
     """Get current workspace details."""
-    return request.auth.current_workspace
+    user = request.auth
+    workspace = user.current_workspace
+    member = WorkspaceMember.objects.filter(workspace_id=workspace.id, user=user).first()
+    workspace.user_role = member.role if member else None
+    return workspace
 
 
 @router.put('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
 def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
     """Update current workspace (requires owner or admin role)."""
     workspace = request.auth.current_workspace
-    require_role(request.auth, workspace.id, ADMIN_ROLES)
+    user_role = require_role(request.auth, workspace.id, ADMIN_ROLES)
 
     if data.name is not None:
         workspace.name = data.name
         workspace.save()
 
+    workspace.user_role = user_role
     return workspace
 
 
@@ -172,7 +159,7 @@ def switch_workspace(request: HttpRequest, workspace_id: int):
 
     # Update user's current workspace
     user.current_workspace_id = workspace_id
-    user.save()
+    user.save(update_fields=['current_workspace'])
 
     return {'message': 'Workspace switched successfully', 'workspace_id': workspace_id}
 
@@ -254,12 +241,11 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
             return 400, {'detail': 'User is already a member of this workspace'}
 
         # Add existing user to workspace
-        new_member = WorkspaceMember(
+        new_member = WorkspaceMember.objects.create(
             workspace_id=workspace_id,
             user_id=existing_user.id,
             role=data.role,
         )
-        new_member.save()
 
         return 201, {
             'message': f'Existing user {data.email} added to workspace',
@@ -269,6 +255,8 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
         }
     else:
         # Create new user with provided password
+        if not data.password:
+            return 400, {'detail': 'Password is required when adding a new user.'}
         new_user = User.objects.create_user(
             email=data.email,
             password=data.password,
@@ -278,12 +266,11 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
         )
 
         # Add to workspace
-        new_member = WorkspaceMember(
+        new_member = WorkspaceMember.objects.create(
             workspace_id=workspace_id,
             user_id=new_user.id,
             role=data.role,
         )
-        new_member.save()
 
         return 201, {
             'message': f'User {data.email} created and added to workspace',

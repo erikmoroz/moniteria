@@ -104,6 +104,12 @@ class TestGetCurrentWorkspace(WorkspaceTestCase):
         self.assertEqual(data['id'], self.workspace.id)
         self.assertEqual(data['name'], self.workspace_name)
 
+    def test_get_current_workspace_includes_user_role(self):
+        """GET /current should include user_role in the response."""
+        data = self.get('/api/workspaces/current', **self.auth_headers())
+        self.assertStatus(200)
+        self.assertEqual(data['user_role'], 'owner')
+
     def test_get_current_workspace_without_auth_fails(self):
         """Test that getting current workspace without authentication fails."""
         self.get('/api/workspaces/current')
@@ -149,6 +155,13 @@ class TestUpdateCurrentWorkspace(WorkspaceTestCase):
         payload = {'name': 'Should Not Work'}
         self.put('/api/workspaces/current', payload, **headers)
         self.assertStatus(403)
+
+    def test_update_workspace_response_includes_user_role(self):
+        """PUT /current should include user_role in the response."""
+        payload = {'name': 'Updated Name'}
+        data = self.put('/api/workspaces/current', payload, **self.auth_headers())
+        self.assertStatus(200)
+        self.assertEqual(data['user_role'], 'owner')
 
     def test_update_workspace_without_auth_fails(self):
         """Test that updating workspace without authentication fails."""
@@ -342,6 +355,21 @@ class TestAddMemberToWorkspace(WorkspaceTestCase):
         }
         self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload, **headers)
         self.assertStatus(403)
+
+    def test_add_existing_user_without_password_succeeds(self):
+        """Existing user can be added without providing a password."""
+        User.objects.create_user(email='nopwd@example.com', password='pass123')
+        payload = {'email': 'nopwd@example.com', 'role': 'viewer'}
+        data = self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload, **self.auth_headers())
+        self.assertStatus(201)
+        self.assertFalse(data['is_new_user'])
+
+    def test_add_new_user_without_password_fails(self):
+        """New user cannot be created without a password."""
+        payload = {'email': 'brand_new@example.com', 'role': 'member'}
+        data = self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload, **self.auth_headers())
+        self.assertStatus(400)
+        self.assertIn('Password', data['detail'])
 
     def test_add_member_without_auth_fails(self):
         """Test that adding member without authentication fails."""

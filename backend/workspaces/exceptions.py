@@ -1,24 +1,15 @@
-"""Custom exceptions for workspaces app."""
+"""Domain exceptions for the workspaces app."""
+
+from common.exceptions import NotFoundError, ValidationError
 
 
-class WorkspaceError(Exception):
-    """Base exception for workspace operations."""
+class CurrencyNotFoundError(NotFoundError):
+    default_message = 'Currency not found'
 
-    def __init__(self, message: str, code: str | None = None):
-        self.message = message
-        self.code = code
-        super().__init__(message)
-
-
-class WorkspaceCurrencyNotFoundError(WorkspaceError):
-    """Raised when a currency is not found."""
-
-    def __init__(self, message: str = 'Currency not found'):
+    def __init__(self, message: str | None = None):
         super().__init__(message, code='not_found')
 
 
-class WorkspaceCurrencyDuplicateError(WorkspaceError):
-    """Raised when a currency with the same symbol already exists."""
-
+class CurrencyDuplicateSymbolError(ValidationError):
     def __init__(self, symbol: str):
-        super().__init__(f'Currency with symbol {symbol} already exists in this workspace', code='duplicate')
+        super().__init__(f'Currency with symbol {symbol} already exists in this workspace', code='duplicate_symbol')

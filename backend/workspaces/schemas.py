@@ -1,7 +1,6 @@
 """Schemas for workspaces app."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -34,7 +33,7 @@ class CurrencyOut(BaseModel):
 class WorkspaceUpdate(BaseModel):
     """Schema for updating a workspace."""
 
-    name: Optional[str] = Field(None, max_length=100)
+    name: str | None = Field(None, max_length=100)
 
     @field_validator('name')
     @classmethod
@@ -51,9 +50,9 @@ class WorkspaceOut(BaseModel):
 
     id: int
     name: str
-    owner_id: Optional[int] = None
+    owner_id: int | None = None
     created_at: datetime
-    user_role: Optional[str] = None
+    user_role: str | None = None
 
 
 class WorkspaceCreate(BaseModel):
@@ -73,9 +72,9 @@ class WorkspaceMemberAdd(BaseModel):
     """Request to add a new member to workspace with direct account creation."""
 
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=255)
+    password: str | None = Field(None, min_length=8, max_length=255)
     role: str = Field(..., pattern=r'^(admin|member|viewer)$')
-    full_name: Optional[str] = Field(None, max_length=100)
+    full_name: str | None = Field(None, max_length=100)
 
 
 class WorkspaceMemberRoleUpdate(BaseModel):
@@ -102,7 +101,7 @@ class WorkspaceMemberOut(BaseModel):
     workspace_id: int
     user_id: int
     email: str
-    full_name: Optional[str]
+    full_name: str | None
     role: str
     is_active: bool
     created_at: datetime

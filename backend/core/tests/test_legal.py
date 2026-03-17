@@ -158,6 +158,11 @@ class LegalDBTests(TestCase):
     """Tests for legal document database reads."""
 
     def setUp(self):
+        # Remove any records seeded at the session level so this class can
+        # insert its own test-specific versions.  The delete runs inside a
+        # SAVEPOINT, so it is rolled back after each test method and the
+        # session records are restored for other test classes.
+        LegalDocument.objects.all().delete()
         LegalDocument.objects.create(
             doc_type='terms_of_service',
             version='9.9',
@@ -193,6 +198,7 @@ class LegalAPITests(APIClientMixin, TestCase):
     """Tests for legal document API endpoints."""
 
     def setUp(self):
+        LegalDocument.objects.all().delete()
         LegalDocument.objects.create(
             doc_type='terms_of_service',
             version='1.0',

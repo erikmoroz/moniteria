@@ -1,7 +1,6 @@
 """JWT authentication utilities for Django-Ninja API."""
 
 import datetime
-from typing import Optional
 
 import jwt
 from django.conf import settings
@@ -18,7 +17,7 @@ User = get_user_model()
 class JWTAuth(HttpBearer):
     """JWT authentication for Django-Ninja."""
 
-    def authenticate(self, request, token: str) -> Optional[User]:
+    def authenticate(self, request, token: str) -> User | None:
         """Authenticate request using JWT token."""
         try:
             payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
@@ -63,7 +62,7 @@ def create_access_token(user: User) -> str:
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+def decode_access_token(token: str) -> dict | None:
     """Decode and validate access token."""
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])

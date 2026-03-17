@@ -6,6 +6,7 @@ from django.test import TestCase
 from budget_accounts.models import BudgetAccount
 from common.tests.factories import UserFactory
 from workspaces.factories import WorkspaceFactory
+from workspaces.exceptions import CurrencyDuplicateSymbolError, CurrencyNotFoundError
 from workspaces.models import Currency, Workspace, WorkspaceMember
 from workspaces.services import CurrencyService, WorkspaceService
 
@@ -148,7 +149,7 @@ class TestCurrencyService(TestCase):
     def test_list_currencies(self):
         """Test listing currencies for a workspace."""
         workspace = WorkspaceFactory()
-        currencies = CurrencyService.list_currencies(workspace)
+        currencies = CurrencyService.list_currencies(workspace.id)
         self.assertEqual(len(currencies), 4)
 
     def test_get_currency(self):
@@ -182,16 +183,15 @@ class TestCurrencyService(TestCase):
         self.assertEqual(currency.workspace, workspace)
 
     def test_create_duplicate_currency_fails(self):
-        """Test that creating duplicate currency symbol fails."""
+        """Test that creating duplicate currency symbol raises CurrencyDuplicateSymbolError."""
         workspace = WorkspaceFactory()
 
         class Data:
             symbol = 'PLN'
             name = 'Polish Zloty'
 
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(CurrencyDuplicateSymbolError):
             CurrencyService.create_currency(workspace, Data())
-        self.assertIn('already exists', str(context.exception))
 
     def test_delete_currency(self):
         """Test deleting a currency."""
@@ -203,12 +203,11 @@ class TestCurrencyService(TestCase):
         self.assertFalse(Currency.objects.filter(id=usd.id).exists())
 
     def test_delete_currency_wrong_workspace(self):
-        """Test that deleting currency from wrong workspace fails."""
+        """Test that deleting currency from wrong workspace raises CurrencyNotFoundError."""
         workspace1 = WorkspaceFactory()
         workspace2 = WorkspaceFactory()
 
         usd = Currency.objects.get(workspace=workspace1, symbol='USD')
 
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(CurrencyNotFoundError):
             CurrencyService.delete_currency(usd.id, workspace2)
-        self.assertIn('not found', str(context.exception))
