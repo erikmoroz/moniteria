@@ -1,7 +1,7 @@
 """Business logic for the workspaces app."""
 
 from django.db import transaction as db_transaction
-from django.db.models import Count, Min
+from django.db.models import Count
 
 from budget_accounts.models import BudgetAccount
 from workspaces.demo_fixtures import create_demo_fixtures
@@ -88,10 +88,11 @@ class WorkspaceService:
         next_ws_per_user = (
             WorkspaceMember.objects.filter(user_id__in=affected_user_ids)
             .exclude(workspace_id=workspace_id)
-            .values('user_id')
-            .annotate(next_ws_id=Min('workspace_id'))
+            .order_by('user_id', '-updated_at')
+            .distinct('user_id')
+            .values_list('user_id', 'workspace_id', named=True)
         )
-        next_ws_map = {row['user_id']: row['next_ws_id'] for row in next_ws_per_user}
+        next_ws_map = {row.user_id: row.workspace_id for row in next_ws_per_user}
 
         # -----------------------------------------------------------------------
         # Deletion order matters due to FK constraints:

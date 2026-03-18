@@ -311,6 +311,11 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     if member.role == Role.OWNER:
         raise HttpError(400, 'Workspace owner cannot leave. Transfer ownership first or delete the workspace.')
 
+    # Cannot leave if this is the only workspace
+    other_workspace_count = WorkspaceMember.objects.filter(user=user).exclude(workspace_id=workspace_id).count()
+    if other_workspace_count == 0:
+        raise HttpError(400, 'Cannot leave your only workspace.')
+
     with db_transaction.atomic():
         member.delete()
 
