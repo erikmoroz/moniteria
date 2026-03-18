@@ -2,17 +2,15 @@
 
 from dateutil.relativedelta import relativedelta
 from django.db import transaction as db_transaction
-from ninja.errors import HttpError
 
+from budget_periods.exceptions import BudgetPeriodNotFoundError
 from budget_periods.models import BudgetPeriod
 from budget_periods.schemas import BudgetPeriodCopy
 from budgets.models import Budget
 from categories.models import Category
-from common.permissions import require_role
 from common.services.base import get_workspace_currencies, get_workspace_period
 from period_balances.models import PeriodBalance
 from planned_transactions.models import PlannedTransaction
-from workspaces.models import WRITE_ROLES
 
 
 class BudgetPeriodService:
@@ -23,13 +21,11 @@ class BudgetPeriodService:
 
     @staticmethod
     @db_transaction.atomic
-    def copy(user, workspace, source_period_id: int, data: BudgetPeriodCopy) -> BudgetPeriod:
+    def copy(user, workspace_id: int, source_period_id: int, data: BudgetPeriodCopy) -> BudgetPeriod:
         """Copy a period with all categories, budgets, and planned transactions."""
-        require_role(user, workspace.id, WRITE_ROLES)
-
-        source_period = get_workspace_period(source_period_id, workspace.id)
+        source_period = get_workspace_period(source_period_id, workspace_id)
         if not source_period:
-            raise HttpError(404, 'Period not found')
+            raise BudgetPeriodNotFoundError()
 
         # Create new period in the same budget account as the source
         new_period = BudgetPeriod.objects.create(
@@ -43,7 +39,7 @@ class BudgetPeriodService:
         )
 
         # Create period balances for all currencies
-        currencies = get_workspace_currencies(workspace.id)
+        currencies = get_workspace_currencies(workspace_id)
         PeriodBalance.objects.bulk_create(
             [
                 PeriodBalance(

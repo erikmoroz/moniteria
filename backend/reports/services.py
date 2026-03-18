@@ -3,11 +3,11 @@
 from decimal import Decimal
 
 from django.db.models import Sum
-from ninja.errors import HttpError
 
 from budgets.models import Budget
 from common.services.base import get_workspace_period
 from period_balances.models import PeriodBalance
+from reports.exceptions import ReportPeriodNotFoundError
 from reports.schemas import BudgetSummaryCategoryItem
 from transactions.models import Transaction
 
@@ -15,13 +15,10 @@ from transactions.models import Transaction
 class ReportService:
     @staticmethod
     def get_budget_summary(workspace_id: int, period_id: int) -> tuple:
-        """Return (period, summary_items, balances) for a period budget summary.
-
-        Raises HttpError 404 if the period does not belong to the workspace.
-        """
+        """Return (period, summary_items, balances) for a period budget summary."""
         period = get_workspace_period(period_id, workspace_id)
         if not period:
-            raise HttpError(404, 'Budget period not found')
+            raise ReportPeriodNotFoundError()
 
         budgets = Budget.objects.filter(budget_period_id=period_id).select_related('category', 'currency')
 

@@ -275,4 +275,4 @@ class TestCurrencyService(TestCase):
         usd = Currency.objects.get(workspace=workspace1, symbol='USD')
 
         with self.assertRaises(CurrencyNotFoundError):
-            CurrencyService.delete_currency(usd.id, workspace2)
+            CurrencyService.delete_currency(usd.id, workspace2.id)

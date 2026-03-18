@@ -96,7 +96,5 @@ def update_balance(request, balance_id: int, data: PeriodBalanceUpdate):
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, WRITE_ROLES)
-    workspace = user.current_workspace
-
-    balance = PeriodBalanceService.update_opening_balance(user, workspace, balance_id, data)
+    balance = PeriodBalanceService.update_opening_balance(user, workspace_id, balance_id, data)
     return 200, balance

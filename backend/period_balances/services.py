@@ -9,6 +9,7 @@ from ninja.errors import HttpError
 from budget_periods.models import BudgetPeriod
 from common.services.base import get_or_create_period_balance
 from currency_exchanges.models import CurrencyExchange
+from period_balances.exceptions import PeriodBalanceNotFoundError
 from period_balances.models import PeriodBalance
 from period_balances.schemas import PeriodBalanceUpdate
 from transactions.models import Transaction
@@ -91,16 +92,11 @@ class PeriodBalanceService:
         return balance
 
     @staticmethod
-    def update_opening_balance(user, workspace, balance_id: int, data: PeriodBalanceUpdate) -> PeriodBalance:
+    def update_opening_balance(user, workspace_id: int, balance_id: int, data: PeriodBalanceUpdate) -> PeriodBalance:
         """Update the opening balance and recalculate closing balance."""
-        from common.permissions import require_role
-        from workspaces.models import WRITE_ROLES
-
-        require_role(user, workspace.id, WRITE_ROLES)
-
-        balance = PeriodBalanceService.get_balance(balance_id, workspace.id)
+        balance = PeriodBalanceService.get_balance(balance_id, workspace_id)
         if not balance:
-            raise HttpError(404, 'Period balance not found')
+            raise PeriodBalanceNotFoundError()
 
         balance.opening_balance = data.opening_balance
         balance.closing_balance = (

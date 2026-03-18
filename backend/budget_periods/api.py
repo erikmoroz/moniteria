@@ -176,7 +176,5 @@ def copy_period(request, period_id: int, data: BudgetPeriodCopy):
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, WRITE_ROLES)
-    workspace = user.current_workspace
-
-    new_period = BudgetPeriodService.copy(user, workspace, period_id, data)
+    new_period = BudgetPeriodService.copy(user, workspace_id, period_id, data)
     return 201, new_period

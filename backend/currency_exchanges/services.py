@@ -112,11 +112,11 @@ class CurrencyExchangeService:
         """Update an exchange, reversing old balances and applying new ones."""
         exchange = CurrencyExchangeService.get_exchange(exchange_id, workspace.id)
 
-        new_from_currency = resolve_currency(workspace, data.from_currency)
+        new_from_currency = resolve_currency(workspace.id, data.from_currency)
         if not new_from_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.from_currency)
 
-        new_to_currency = resolve_currency(workspace, data.to_currency)
+        new_to_currency = resolve_currency(workspace.id, data.to_currency)
         if not new_to_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.to_currency)
 
