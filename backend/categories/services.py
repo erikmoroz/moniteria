@@ -58,9 +58,9 @@ class CategoryService:
         return list(Category.objects.filter(budget_period_id=budget_period_id))
 
     @staticmethod
-    def create(user, workspace, data: CategoryCreate) -> Category:
+    def create(user, workspace_id: int, data: CategoryCreate) -> Category:
         """Create a category, validating period ownership."""
-        period = get_workspace_period(data.budget_period_id, workspace.id)
+        period = get_workspace_period(data.budget_period_id, workspace_id)
         if not period:
             raise CategoryPeriodNotFoundError()
 
@@ -75,9 +75,9 @@ class CategoryService:
             raise CategoryDuplicateNameError()
 
     @staticmethod
-    def update(user, workspace, category_id: int, data: CategoryUpdate) -> Category:
+    def update(user, workspace_id: int, category_id: int, data: CategoryUpdate) -> Category:
         """Update a category."""
-        category = CategoryService.get_category(category_id, workspace.id)
+        category = CategoryService.get_category(category_id, workspace_id)
 
         if data.name is not None:
             category.name = data.name
@@ -88,9 +88,9 @@ class CategoryService:
         return category
 
     @staticmethod
-    def delete(user, workspace, category_id: int) -> None:
+    def delete(user, workspace_id: int, category_id: int) -> None:
         """Delete a category."""
-        category = CategoryService.get_category(category_id, workspace.id)
+        category = CategoryService.get_category(category_id, workspace_id)
         category.delete()
 
     @staticmethod

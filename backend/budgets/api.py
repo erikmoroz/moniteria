@@ -26,9 +26,9 @@ def list_budgets(
 def create_budget(request: HttpRequest, data: BudgetCreate):
     """Create a new budget entry."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    budget = BudgetService.create(user, workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    budget = BudgetService.create(user, workspace_id, data)
     return 201, budget
 
 
@@ -36,16 +36,16 @@ def create_budget(request: HttpRequest, data: BudgetCreate):
 def update_budget(request: HttpRequest, budget_id: int, data: BudgetUpdate):
     """Update a budget entry."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    return BudgetService.update(user, workspace, budget_id, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    return BudgetService.update(user, workspace_id, budget_id, data)
 
 
 @router.delete('/{budget_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_budget(request: HttpRequest, budget_id: int):
     """Delete a budget entry."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    BudgetService.delete(user, workspace, budget_id)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    BudgetService.delete(user, workspace_id, budget_id)
     return 204, None

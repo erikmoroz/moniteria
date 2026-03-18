@@ -101,9 +101,9 @@ def get_transaction(request: HttpRequest, transaction_id: int):
 def create_transaction(request: HttpRequest, data: TransactionCreate):
     """Create a new transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    trans = TransactionService.create(user, workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    trans = TransactionService.create(user, workspace_id, data)
     return 201, trans
 
 
@@ -111,16 +111,16 @@ def create_transaction(request: HttpRequest, data: TransactionCreate):
 def update_transaction(request: HttpRequest, transaction_id: int, data: TransactionCreate):
     """Update a transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    return TransactionService.update(user, workspace, transaction_id, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    return TransactionService.update(user, workspace_id, transaction_id, data)
 
 
 @router.delete('/{transaction_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_transaction(request: HttpRequest, transaction_id: int):
     """Delete a transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    TransactionService.delete(user, workspace, transaction_id)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    TransactionService.delete(user, workspace_id, transaction_id)
     return 204, None

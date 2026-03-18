@@ -69,17 +69,17 @@ class CurrencyExchangeService:
 
     @staticmethod
     @db_transaction.atomic
-    def create(user, workspace, data: CurrencyExchangeCreate) -> CurrencyExchange:
+    def create(user, workspace_id: int, data: CurrencyExchangeCreate) -> CurrencyExchange:
         """Create an exchange record and update period balances."""
-        from_currency = resolve_currency(workspace.id, data.from_currency)
+        from_currency = resolve_currency(workspace_id, data.from_currency)
         if not from_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.from_currency)
 
-        to_currency = resolve_currency(workspace.id, data.to_currency)
+        to_currency = resolve_currency(workspace_id, data.to_currency)
         if not to_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.to_currency)
 
-        period_id = CurrencyExchangeService._find_period_for_date(workspace.id, data.date)
+        period_id = CurrencyExchangeService._find_period_for_date(workspace_id, data.date)
         exchange_rate = data.to_amount / data.from_amount
 
         exchange = CurrencyExchange.objects.create(
@@ -108,15 +108,15 @@ class CurrencyExchangeService:
 
     @staticmethod
     @db_transaction.atomic
-    def update(user, workspace, exchange_id: int, data: CurrencyExchangeUpdate) -> CurrencyExchange:
+    def update(user, workspace_id: int, exchange_id: int, data: CurrencyExchangeUpdate) -> CurrencyExchange:
         """Update an exchange, reversing old balances and applying new ones."""
-        exchange = CurrencyExchangeService.get_exchange(exchange_id, workspace.id)
+        exchange = CurrencyExchangeService.get_exchange(exchange_id, workspace_id)
 
-        new_from_currency = resolve_currency(workspace.id, data.from_currency)
+        new_from_currency = resolve_currency(workspace_id, data.from_currency)
         if not new_from_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.from_currency)
 
-        new_to_currency = resolve_currency(workspace.id, data.to_currency)
+        new_to_currency = resolve_currency(workspace_id, data.to_currency)
         if not new_to_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.to_currency)
 
@@ -129,7 +129,7 @@ class CurrencyExchangeService:
             balance_to.exchanges_in -= exchange.to_amount
             CurrencyExchangeService._update_balance(balance_to)
 
-        new_period_id = CurrencyExchangeService._find_period_for_date(workspace.id, data.date)
+        new_period_id = CurrencyExchangeService._find_period_for_date(workspace_id, data.date)
         exchange_rate = data.to_amount / data.from_amount
 
         exchange.date = data.date
@@ -156,9 +156,9 @@ class CurrencyExchangeService:
 
     @staticmethod
     @db_transaction.atomic
-    def delete(user, workspace, exchange_id: int) -> None:
+    def delete(user, workspace_id: int, exchange_id: int) -> None:
         """Delete an exchange and revert period balances."""
-        exchange = CurrencyExchangeService.get_exchange(exchange_id, workspace.id)
+        exchange = CurrencyExchangeService.get_exchange(exchange_id, workspace_id)
 
         if exchange.budget_period_id:
             balance_from = get_or_create_period_balance(exchange.budget_period_id, exchange.from_currency)

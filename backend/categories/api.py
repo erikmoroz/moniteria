@@ -82,9 +82,9 @@ def get_category(request: HttpRequest, category_id: int):
 def create_category(request: HttpRequest, data: CategoryCreate):
     """Create a new category."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    category = CategoryService.create(user, workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    category = CategoryService.create(user, workspace_id, data)
     return 201, category
 
 
@@ -92,16 +92,16 @@ def create_category(request: HttpRequest, data: CategoryCreate):
 def update_category(request: HttpRequest, category_id: int, data: CategoryUpdate):
     """Update a category."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    return CategoryService.update(user, workspace, category_id, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    return CategoryService.update(user, workspace_id, category_id, data)
 
 
 @router.delete('/{category_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_category(request: HttpRequest, category_id: int):
     """Delete a category."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    CategoryService.delete(user, workspace, category_id)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    CategoryService.delete(user, workspace_id, category_id)
     return 204, None

@@ -38,17 +38,17 @@ class PlannedTransactionService:
         return planned
 
     @staticmethod
-    def _resolve_period(workspace, planned_date: date, period_id: int | None) -> int:
+    def _resolve_period(workspace_id: int, planned_date: date, period_id: int | None) -> int:
         """Return the period_id for the planned date, raising when not found."""
         if period_id:
-            period = get_workspace_period(period_id, workspace.id)
+            period = get_workspace_period(period_id, workspace_id)
             if not period:
                 raise PlannedTransactionPeriodNotFoundError()
             return period_id
         period = (
             BudgetPeriod.objects.select_related('budget_account')
             .filter(
-                budget_account__workspace_id=workspace.id,
+                budget_account__workspace_id=workspace_id,
                 start_date__lte=planned_date,
                 end_date__gte=planned_date,
             )
@@ -68,13 +68,13 @@ class PlannedTransactionService:
             raise PlannedTransactionCategoryNotFoundError()
 
     @staticmethod
-    def create(user, workspace, data: PlannedTransactionCreate) -> PlannedTransaction:
+    def create(user, workspace_id: int, data: PlannedTransactionCreate) -> PlannedTransaction:
         """Create a planned transaction."""
-        currency = resolve_currency(workspace.id, data.currency)
+        currency = resolve_currency(workspace_id, data.currency)
         if not currency:
             raise PlannedTransactionCurrencyNotFoundError(data.currency)
 
-        period_id = PlannedTransactionService._resolve_period(workspace, data.planned_date, data.budget_period_id)
+        period_id = PlannedTransactionService._resolve_period(workspace_id, data.planned_date, data.budget_period_id)
         PlannedTransactionService._validate_category(data.category_id, period_id)
 
         return PlannedTransaction.objects.create(
@@ -90,15 +90,15 @@ class PlannedTransactionService:
         )
 
     @staticmethod
-    def update(user, workspace, planned_id: int, data: PlannedTransactionUpdate) -> PlannedTransaction:
+    def update(user, workspace_id: int, planned_id: int, data: PlannedTransactionUpdate) -> PlannedTransaction:
         """Update a planned transaction."""
-        planned = PlannedTransactionService.get_planned(planned_id, workspace.id)
+        planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
 
-        currency = resolve_currency(workspace.id, data.currency)
+        currency = resolve_currency(workspace_id, data.currency)
         if not currency:
             raise PlannedTransactionCurrencyNotFoundError(data.currency)
 
-        period_id = PlannedTransactionService._resolve_period(workspace, data.planned_date, data.budget_period_id)
+        period_id = PlannedTransactionService._resolve_period(workspace_id, data.planned_date, data.budget_period_id)
         PlannedTransactionService._validate_category(data.category_id, period_id)
 
         planned.budget_period_id = period_id
@@ -114,16 +114,16 @@ class PlannedTransactionService:
         return planned
 
     @staticmethod
-    def delete(user, workspace, planned_id: int) -> None:
+    def delete(user, workspace_id: int, planned_id: int) -> None:
         """Delete a planned transaction."""
-        planned = PlannedTransactionService.get_planned(planned_id, workspace.id)
+        planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
         planned.delete()
 
     @staticmethod
     @db_transaction.atomic
-    def execute(user, workspace, planned_id: int, payment_date: date) -> PlannedTransaction:
+    def execute(user, workspace_id: int, planned_id: int, payment_date: date) -> PlannedTransaction:
         """Execute a planned transaction, creating an actual transaction."""
-        planned = PlannedTransactionService.get_planned(planned_id, workspace.id)
+        planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
 
         if planned.status == 'done':
             raise PlannedTransactionAlreadyExecutedError()
@@ -131,7 +131,7 @@ class PlannedTransactionService:
         period = (
             BudgetPeriod.objects.select_related('budget_account')
             .filter(
-                budget_account__workspace_id=workspace.id,
+                budget_account__workspace_id=workspace_id,
                 start_date__lte=payment_date,
                 end_date__gte=payment_date,
             )

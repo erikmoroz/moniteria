@@ -34,9 +34,9 @@ def list_exchanges(
 def create_exchange(request: HttpRequest, data: CurrencyExchangeCreate):
     """Create a new currency exchange (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    exchange = CurrencyExchangeService.create(user, workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    exchange = CurrencyExchangeService.create(user, workspace_id, data)
     return 201, exchange
 
 
@@ -94,16 +94,16 @@ def get_exchange(request: HttpRequest, exchange_id: int):
 def update_exchange(request: HttpRequest, exchange_id: int, data: CurrencyExchangeUpdate):
     """Update a currency exchange (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    return CurrencyExchangeService.update(user, workspace, exchange_id, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    return CurrencyExchangeService.update(user, workspace_id, exchange_id, data)
 
 
 @router.delete('/{exchange_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_exchange(request: HttpRequest, exchange_id: int):
     """Delete a currency exchange (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
-    CurrencyExchangeService.delete(user, workspace, exchange_id)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
+    CurrencyExchangeService.delete(user, workspace_id, exchange_id)
     return 204, None

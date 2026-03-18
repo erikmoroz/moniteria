@@ -51,10 +51,10 @@ def list_planned(
 def create_planned(request: HttpRequest, data: PlannedTransactionCreate):
     """Create a new planned transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    planned = PlannedTransactionService.create(user, workspace, data)
+    planned = PlannedTransactionService.create(user, workspace_id, data)
     return 201, planned
 
 
@@ -115,10 +115,10 @@ def get_planned(request: HttpRequest, planned_id: int):
 def update_planned(request: HttpRequest, planned_id: int, data: PlannedTransactionUpdate):
     """Update a planned transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    planned = PlannedTransactionService.update(user, workspace, planned_id, data)
+    planned = PlannedTransactionService.update(user, workspace_id, planned_id, data)
     return planned
 
 
@@ -126,10 +126,10 @@ def update_planned(request: HttpRequest, planned_id: int, data: PlannedTransacti
 def delete_planned(request: HttpRequest, planned_id: int):
     """Delete a planned transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    PlannedTransactionService.delete(user, workspace, planned_id)
+    PlannedTransactionService.delete(user, workspace_id, planned_id)
     return 204, None
 
 
@@ -141,8 +141,8 @@ def execute_planned(
 ):
     """Execute a planned transaction, creating an actual transaction (requires write access)."""
     user = request.auth
-    workspace = user.current_workspace
-    require_role(user, workspace.id, WRITE_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    planned = PlannedTransactionService.execute(user, workspace, planned_id, payment_date)
+    planned = PlannedTransactionService.execute(user, workspace_id, planned_id, payment_date)
     return planned

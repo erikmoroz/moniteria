@@ -277,7 +277,7 @@ import { useAuth } from '../contexts/AuthContext'
 ## Security Model (Four Layers)
 
 1. **Authentication**: `auth=JWTAuth()` on endpoints (or `auth=WorkspaceJWTAuth()` for workspace-scoped endpoints)
-2. **Workspace Membership**: Verify `request.auth.current_workspace`
+2. **Workspace Membership**: Guaranteed by `WorkspaceJWTAuth` — raises 400 if `current_workspace_id` is unset
 3. **Role-Based Permissions**: `require_role(user, workspace_id, WRITE_ROLES)`
 4. **Resource Ownership**: Filter queries by workspace ID using `Model.objects.for_workspace(workspace_id)`
 
@@ -360,7 +360,8 @@ queryset = Transaction.objects.filter(
 # In api.py — no business logic, just wire up
 @router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction_endpoint(request, data: TransactionCreate):
-    return 201, services.create_transaction(request.auth, request.auth.current_workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    return 201, services.create_transaction(request.auth, workspace_id, data)
 ```
 
 ### Backend: Workspace Management

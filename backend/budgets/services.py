@@ -34,9 +34,9 @@ class BudgetService:
         return list(queryset)
 
     @staticmethod
-    def create(user, workspace, data: BudgetCreate) -> Budget:
+    def create(user, workspace_id: int, data: BudgetCreate) -> Budget:
         """Create a budget entry, validating period and category membership."""
-        period = get_workspace_period(data.budget_period_id, workspace.id)
+        period = get_workspace_period(data.budget_period_id, workspace_id)
         if not period:
             raise BudgetPeriodNotFoundError()
 
@@ -44,7 +44,7 @@ class BudgetService:
         if not category:
             raise BudgetCategoryNotFoundError()
 
-        currency = resolve_currency(workspace.id, data.currency)
+        currency = resolve_currency(workspace_id, data.currency)
         if not currency:
             raise BudgetCurrencyNotFoundError(data.currency)
 
@@ -58,9 +58,9 @@ class BudgetService:
         )
 
     @staticmethod
-    def update(user, workspace, budget_id: int, data: BudgetUpdate) -> Budget:
+    def update(user, workspace_id: int, budget_id: int, data: BudgetUpdate) -> Budget:
         """Update a budget entry."""
-        budget = BudgetService.get_budget(budget_id, workspace.id)
+        budget = BudgetService.get_budget(budget_id, workspace_id)
 
         if data.amount is not None:
             budget.amount = data.amount
@@ -71,7 +71,7 @@ class BudgetService:
         return budget
 
     @staticmethod
-    def delete(user, workspace, budget_id: int) -> None:
+    def delete(user, workspace_id: int, budget_id: int) -> None:
         """Delete a budget entry."""
-        budget = BudgetService.get_budget(budget_id, workspace.id)
+        budget = BudgetService.get_budget(budget_id, workspace_id)
         budget.delete()

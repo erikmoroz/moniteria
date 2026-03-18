@@ -57,17 +57,17 @@ class TransactionService:
         balance.save()
 
     @staticmethod
-    def _resolve_period(workspace, date, period_id: int | None) -> int:
+    def _resolve_period(workspace_id: int, date, period_id: int | None) -> int:
         """Return the resolved period_id, raising exception when not found."""
         if period_id:
-            period = get_workspace_period(period_id, workspace.id)
+            period = get_workspace_period(period_id, workspace_id)
             if not period:
                 raise TransactionPeriodNotFoundError('Budget period not found')
             return period_id
         period = (
             BudgetPeriod.objects.select_related('budget_account')
             .filter(
-                budget_account__workspace_id=workspace.id,
+                budget_account__workspace_id=workspace_id,
                 start_date__lte=date,
                 end_date__gte=date,
             )
@@ -141,14 +141,14 @@ class TransactionService:
 
     @staticmethod
     @db_transaction.atomic
-    def create(user, workspace, data: TransactionCreate) -> Transaction:
+    def create(user, workspace_id: int, data: TransactionCreate) -> Transaction:
         """Create a transaction and update the period balance."""
-        currency = resolve_currency(workspace.id, data.currency)
+        currency = resolve_currency(workspace_id, data.currency)
         if not currency:
             raise TransactionCurrencyNotFoundError(data.currency)
 
         category_id = None if data.type == 'income' else data.category_id
-        period_id = TransactionService._resolve_period(workspace, data.date, data.budget_period_id)
+        period_id = TransactionService._resolve_period(workspace_id, data.date, data.budget_period_id)
         TransactionService._validate_category(category_id, period_id)
 
         trans = Transaction.objects.create(
@@ -167,11 +167,11 @@ class TransactionService:
 
     @staticmethod
     @db_transaction.atomic
-    def update(user, workspace, transaction_id: int, data: TransactionCreate) -> Transaction:
+    def update(user, workspace_id: int, transaction_id: int, data: TransactionCreate) -> Transaction:
         """Update a transaction, reversing the old balance and applying the new one."""
-        trans = TransactionService.get_transaction(transaction_id, workspace.id)
+        trans = TransactionService.get_transaction(transaction_id, workspace_id)
 
-        new_currency = resolve_currency(workspace, data.currency)
+        new_currency = resolve_currency(workspace_id, data.currency)
         if not new_currency:
             raise TransactionCurrencyNotFoundError(data.currency)
 
@@ -182,7 +182,7 @@ class TransactionService:
                 trans.budget_period_id, trans.currency, trans.type, trans.amount, 'subtract'
             )
 
-        period_id = TransactionService._resolve_period(workspace, data.date, data.budget_period_id)
+        period_id = TransactionService._resolve_period(workspace_id, data.date, data.budget_period_id)
         TransactionService._validate_category(category_id, period_id)
 
         trans.date = data.date
@@ -200,9 +200,9 @@ class TransactionService:
 
     @staticmethod
     @db_transaction.atomic
-    def delete(user, workspace, transaction_id: int) -> None:
+    def delete(user, workspace_id: int, transaction_id: int) -> None:
         """Delete a transaction and revert the period balance."""
-        trans = TransactionService.get_transaction(transaction_id, workspace.id)
+        trans = TransactionService.get_transaction(transaction_id, workspace_id)
 
         if trans.budget_period_id:
             TransactionService.update_period_balance(
