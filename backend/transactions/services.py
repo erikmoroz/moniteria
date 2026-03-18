@@ -74,7 +74,7 @@ class TransactionService:
             .first()
         )
         if not period:
-            raise TransactionPeriodNotFoundError()
+            raise TransactionPeriodNotFoundError('Budget period not found')
         return period.id
 
     @staticmethod
