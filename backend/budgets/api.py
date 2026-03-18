@@ -44,8 +44,7 @@ def update_budget(request: HttpRequest, budget_id: int, data: BudgetUpdate):
 @router.delete('/{budget_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_budget(request: HttpRequest, budget_id: int):
     """Delete a budget entry."""
-    user = request.auth
     workspace_id = request.auth.current_workspace_id
-    require_role(user, workspace_id, WRITE_ROLES)
-    BudgetService.delete(user, workspace_id, budget_id)
+    require_role(request.auth, workspace_id, WRITE_ROLES)
+    BudgetService.delete(workspace_id, budget_id)
     return 204, None

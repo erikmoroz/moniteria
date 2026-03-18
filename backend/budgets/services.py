@@ -71,7 +71,7 @@ class BudgetService:
         return budget
 
     @staticmethod
-    def delete(user, workspace_id: int, budget_id: int) -> None:
+    def delete(workspace_id: int, budget_id: int) -> None:
         """Delete a budget entry."""
         budget = BudgetService.get_budget(budget_id, workspace_id)
         budget.delete()

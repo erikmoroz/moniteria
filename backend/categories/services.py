@@ -88,7 +88,7 @@ class CategoryService:
         return category
 
     @staticmethod
-    def delete(user, workspace_id: int, category_id: int) -> None:
+    def delete(workspace_id: int, category_id: int) -> None:
         """Delete a category."""
         category = CategoryService.get_category(category_id, workspace_id)
         category.delete()

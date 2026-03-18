@@ -10,7 +10,7 @@ class TransactionNotFoundError(NotFoundError):
         super().__init__(message, code='not_found')
 
 
-class TransactionPeriodNotFoundError(NotFoundError):
+class TransactionPeriodNotFoundError(ValidationError):
     default_message = 'No active budget period for the transaction date'
 
     def __init__(self, message: str | None = None):

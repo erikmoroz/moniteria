@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction as db_transaction
 from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
@@ -310,14 +311,13 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     if member.role == Role.OWNER:
         raise HttpError(400, 'Workspace owner cannot leave. Transfer ownership first or delete the workspace.')
 
-    # Remove membership
-    member.delete()
+    with db_transaction.atomic():
+        member.delete()
 
-    # If this was user's current workspace, switch to another available workspace
-    if user.current_workspace_id == workspace_id:
-        next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
-        user.current_workspace = next_workspace
-        user.save(update_fields=['current_workspace'])
+        if user.current_workspace_id == workspace_id:
+            next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+            user.current_workspace = next_workspace
+            user.save(update_fields=['current_workspace'])
 
     return {'message': 'Successfully left workspace'}
 
@@ -418,10 +418,14 @@ def remove_member_from_workspace(request: HttpRequest, workspace_id: int, member
     if current_role == Role.ADMIN and member.role == Role.ADMIN:
         raise HttpError(403, 'Admin cannot remove another admin. Owner required.')
 
-    # Remove the member
-    member.delete()
+    with db_transaction.atomic():
+        member.delete()
 
-    # Note: User record is NOT deleted, only membership
+        removed_user = User.objects.filter(id=member_user_id).first()
+        if removed_user and removed_user.current_workspace_id == workspace_id:
+            next_workspace = Workspace.objects.filter(members__user=removed_user).first()
+            removed_user.current_workspace = next_workspace
+            removed_user.save(update_fields=['current_workspace'])
 
     return 204, None
 

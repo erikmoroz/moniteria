@@ -478,11 +478,49 @@ class TestRemoveMemberFromWorkspace(WorkspaceTestCase):
         self.delete(f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}', **self.auth_headers())
         self.assertStatus(204)
 
-        # Verify member was removed
         self.assertEqual(
             WorkspaceMember.objects.filter(workspace_id=self.workspace.id).count(),
             initial_count - 1,
         )
+
+    def test_remove_member_clears_current_workspace(self):
+        """Test that removing a member clears their current_workspace_id if it points to this workspace."""
+        self.viewer_user.current_workspace = self.workspace
+        self.viewer_user.save()
+
+        self.delete(f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}', **self.auth_headers())
+        self.assertStatus(204)
+
+        self.viewer_user.refresh_from_db()
+        self.assertIsNone(self.viewer_user.current_workspace_id)
+
+    def test_remove_member_switches_to_other_workspace(self):
+        """Test that removed member is switched to another workspace if available."""
+        other_ws = WorkspaceFactory(name='Other WS')
+        WorkspaceMemberFactory(workspace=other_ws, user=self.viewer_user, role='member')
+
+        self.viewer_user.current_workspace = self.workspace
+        self.viewer_user.save()
+
+        self.delete(f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}', **self.auth_headers())
+        self.assertStatus(204)
+
+        self.viewer_user.refresh_from_db()
+        self.assertEqual(self.viewer_user.current_workspace_id, other_ws.id)
+
+    def test_remove_member_preserves_current_workspace_if_different(self):
+        """Test that removing a member doesn't change their current_workspace if it points elsewhere."""
+        other_ws = WorkspaceFactory(name='Other WS')
+        WorkspaceMemberFactory(workspace=other_ws, user=self.viewer_user, role='member')
+
+        self.viewer_user.current_workspace = other_ws
+        self.viewer_user.save()
+
+        self.delete(f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}', **self.auth_headers())
+        self.assertStatus(204)
+
+        self.viewer_user.refresh_from_db()
+        self.assertEqual(self.viewer_user.current_workspace_id, other_ws.id)
 
     def test_remove_yourself_fails(self):
         """Test that removing yourself fails."""

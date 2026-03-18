@@ -50,7 +50,8 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to switch workspace:', error)
-      toast.error('Failed to switch workspace')
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Failed to switch workspace')
     } finally {
       setIsSubmitting(false)
     }
@@ -66,7 +67,8 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to create workspace:', error)
-      toast.error('Failed to create workspace')
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Failed to create workspace')
     } finally {
       setIsSubmitting(false)
     }
@@ -171,7 +173,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
 
               <div className="border-t border-gray-100 mt-1 pt-1">
                 <button
-                  onClick={() => setIsCreating(true)}
+                  onClick={() => { setNewName(''); setIsCreating(true); }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <HiPlus className="h-4 w-4" />

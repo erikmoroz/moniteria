@@ -49,8 +49,9 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
       await updateWorkspace({ name: newName.trim() })
       toast.success('Workspace name updated')
       onClose()
-    } catch {
-      toast.error('Failed to update workspace name')
+    } catch (error) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Failed to update workspace name')
     } finally {
       setIsSaving(false)
     }
@@ -64,8 +65,9 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
       toast.success('Workspace deleted')
       setShowDeleteConfirm(false)
       onClose()
-    } catch {
-      toast.error('Failed to delete workspace')
+    } catch (error) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Failed to delete workspace')
     } finally {
       setIsDeleting(false)
     }
@@ -139,18 +141,25 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Danger Zone</h4>
 
                   {!showDeleteConfirm ? (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      disabled={!canDelete}
-                      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md ${
-                        canDelete
-                          ? 'text-red-700 bg-red-50 hover:bg-red-100'
-                          : 'text-gray-400 bg-gray-50 cursor-not-allowed'
-                      }`}
-                    >
-                      <HiTrash className="h-4 w-4" />
-                      Delete Workspace
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        disabled={!canDelete}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md ${
+                          canDelete
+                            ? 'text-red-700 bg-red-50 hover:bg-red-100'
+                            : 'text-gray-400 bg-gray-50 cursor-not-allowed'
+                        }`}
+                      >
+                        <HiTrash className="h-4 w-4" />
+                        Delete Workspace
+                      </button>
+                      {!canDelete && isOwner && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          You must have at least one workspace. Create another workspace before deleting this one.
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-start gap-3">

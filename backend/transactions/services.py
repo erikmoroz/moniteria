@@ -117,9 +117,10 @@ class TransactionService:
                 )
                 .first()
             )
-            if not period:
-                raise TransactionPeriodNotFoundError('No budget period found for the given date')
-            queryset = queryset.filter(budget_period_id=period.id)
+            if period:
+                queryset = queryset.filter(budget_period_id=period.id)
+            else:
+                return []
 
         if type:
             queryset = queryset.filter(type__in=type)

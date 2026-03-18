@@ -100,8 +100,7 @@ def update_category(request: HttpRequest, category_id: int, data: CategoryUpdate
 @router.delete('/{category_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_category(request: HttpRequest, category_id: int):
     """Delete a category."""
-    user = request.auth
     workspace_id = request.auth.current_workspace_id
-    require_role(user, workspace_id, WRITE_ROLES)
-    CategoryService.delete(user, workspace_id, category_id)
+    require_role(request.auth, workspace_id, WRITE_ROLES)
+    CategoryService.delete(workspace_id, category_id)
     return 204, None
