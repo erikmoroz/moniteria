@@ -85,6 +85,8 @@ class WorkspaceService:
 
         affected_user_ids = [u.id for u in affected_users] + [user.id]
 
+        UserModel.objects.filter(id__in=affected_user_ids).select_for_update()
+
         memberships = (
             WorkspaceMember.objects.filter(user_id__in=affected_user_ids)
             .exclude(workspace_id=workspace_id)

@@ -158,7 +158,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, onClose }: Sideba
           </div>
         )}
 
-        {workspace && (
+        {workspace ? (
           <nav className="flex-1 overflow-y-auto p-2">
             {navItems.map((item) => (
               <NavLink
@@ -180,6 +180,15 @@ export default function Sidebar({ collapsed, onToggleCollapse, onClose }: Sideba
               </NavLink>
             ))}
           </nav>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">No workspace selected</p>
+              <p className="text-xs text-gray-400">
+                Create or join a workspace to get started
+              </p>
+            </div>
+          </div>
         )}
 
         <div className="p-2 border-t border-gray-200 flex-shrink-0 space-y-1">

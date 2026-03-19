@@ -59,8 +59,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const currentMembership = members?.find(m => m.user_id === user?.id) || null;
   const userRole = currentMembership?.role || null;
 
-  const invalidateWorkspaceQueries = () => {
-    queryClient.removeQueries({ queryKey: ['workspace-members'] });
+  const invalidateWorkspaceQueries = (deletedWorkspaceId?: number) => {
+    if (deletedWorkspaceId) {
+      queryClient.removeQueries({ queryKey: ['workspace-members', deletedWorkspaceId] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['workspace-members'] });
+    }
     queryClient.invalidateQueries({ queryKey: ['workspace-current'] });
     queryClient.invalidateQueries({ queryKey: ['workspaces'] });
     queryClient.invalidateQueries({ queryKey: ['budget-accounts'] });
@@ -92,8 +96,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const deleteMutation = useMutation({
     mutationFn: (workspaceId: number) => workspacesApi.delete(workspaceId),
-    onSuccess: () => {
-      invalidateWorkspaceQueries();
+    onSuccess: (_data, workspaceId) => {
+      invalidateWorkspaceQueries(workspaceId);
       localStorage.removeItem('monie_selected_account');
     },
   });

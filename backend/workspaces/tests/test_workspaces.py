@@ -927,3 +927,25 @@ class TestWorkspaceJWTAuth400(APIClientMixin, TestCase):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
         self.get('/api/workspaces/current', **headers)
         self.assertStatus(400)
+
+    def test_workspace_scoped_endpoints_return_400_without_active_workspace(self):
+        """Multiple workspace-scoped endpoints should return 400 when user has no current_workspace."""
+        from common.auth import create_access_token
+        from common.tests.factories import UserFactory
+
+        user = UserFactory(current_workspace=None)
+        token = create_access_token(user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        endpoints = [
+            '/api/workspaces/current',
+            '/api/budget-accounts',
+            '/api/currencies',
+            '/api/transactions',
+            '/api/categories',
+        ]
+
+        for endpoint in endpoints:
+            with self.subTest(endpoint=endpoint):
+                self.get(endpoint, **headers)
+                self.assertStatus(400)
