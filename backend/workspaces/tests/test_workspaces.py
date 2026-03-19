@@ -842,9 +842,8 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
         self.delete(f'/api/workspaces/{self.second_workspace.id}')
         self.assertStatus(401)
 
-    def test_delete_only_workspace_returns_400(self):
-        """Test that deleting the user's only workspace returns 400."""
-        # Use a user with only one workspace
+    def test_delete_only_workspace_returns_204(self):
+        """Test that deleting the user's only workspace returns 204 and sets current_workspace to None."""
         single_ws_user = UserFactory(current_workspace=self.workspace)
         WorkspaceMemberFactory(
             workspace=self.workspace,
@@ -857,24 +856,22 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
         token = create_access_token(single_ws_user)
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
 
-        # Delete the second workspace first (owned by self.user, not single_ws_user)
+        self.delete(f'/api/workspaces/{self.workspace.id}', **headers)
+        self.assertStatus(204)
+
+        single_ws_user.refresh_from_db()
+        self.assertIsNone(single_ws_user.current_workspace_id)
+
+    def test_delete_workspace_where_member_has_no_other_workspace_returns_204(self):
+        """Test that deleting a workspace where a member has no other workspace returns 204 and sets current_workspace to None."""
+        sole_member = UserFactory(current_workspace=self.second_workspace)
+        WorkspaceMemberFactory(workspace=self.second_workspace, user=sole_member, role='member')
+
         self.delete(f'/api/workspaces/{self.second_workspace.id}', **self.auth_headers())
         self.assertStatus(204)
 
-        # Now single_ws_user only has self.workspace — deleting it should fail
-        self.delete(f'/api/workspaces/{self.workspace.id}', **headers)
-        self.assertStatus(400)
-
-    def test_delete_workspace_where_member_has_no_other_workspace_returns_400(self):
-        """Test that deleting a workspace where a member has no other workspace returns 400."""
-        # Create a member who only belongs to second_workspace
-        sole_member = UserFactory(current_workspace=self.second_workspace)
-        WorkspaceMemberFactory(workspace=self.second_workspace, user=sole_member, role='member')
-        # sole_member has no other workspace — deletion must be blocked
-        self.delete(f'/api/workspaces/{self.second_workspace.id}', **self.auth_headers())
-        self.assertStatus(400)
-        # Workspace must still exist
-        self.assertTrue(Workspace.objects.filter(id=self.second_workspace.id).exists())
+        sole_member.refresh_from_db()
+        self.assertIsNone(sole_member.current_workspace_id)
 
 
 # =============================================================================
@@ -949,3 +946,40 @@ class TestWorkspaceJWTAuth400(APIClientMixin, TestCase):
             with self.subTest(endpoint=endpoint):
                 self.get(endpoint, **headers)
                 self.assertStatus(400)
+
+
+class TestWorkspaceJWTAuthMembership(APIClientMixin, TestCase):
+    """Tests for WorkspaceJWTAuth verifying workspace membership."""
+
+    def setUp(self):
+        """Set up test data."""
+        APIClientMixin.setUp(self)
+
+    def test_workspace_scoped_endpoint_returns_403_for_non_member(self):
+        """A user with current_workspace_id pointing to a workspace they are not a member of gets 403."""
+        from common.auth import create_access_token
+        from common.tests.factories import UserFactory
+
+        workspace = WorkspaceFactory(name='Test Workspace')
+
+        user = UserFactory(current_workspace=workspace)
+        token = create_access_token(user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.get('/api/budget-accounts', **headers)
+        self.assertStatus(403)
+
+    def test_workspace_scoped_endpoint_returns_200_for_valid_member(self):
+        """A valid member of the workspace gets 200 on workspace-scoped endpoints."""
+        from common.auth import create_access_token
+        from common.tests.factories import UserFactory
+
+        workspace = WorkspaceFactory(name='Test Workspace')
+
+        user = UserFactory(current_workspace=workspace)
+        WorkspaceMemberFactory(workspace=workspace, user=user, role='member')
+        token = create_access_token(user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.get('/api/budget-accounts', **headers)
+        self.assertStatus(200)

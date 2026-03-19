@@ -5,9 +5,7 @@ from common.exceptions import NotFoundError, ValidationError
 
 class CurrencyNotFoundError(NotFoundError):
     default_message = 'Currency not found'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='not_found')
+    default_code = 'not_found'
 
 
 class CurrencyDuplicateSymbolError(ValidationError):

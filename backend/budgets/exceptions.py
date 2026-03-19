@@ -5,13 +5,9 @@ from common.exceptions import NotFoundError, ValidationError
 
 class BudgetNotFoundError(NotFoundError):
     default_message = 'Budget not found'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='not_found')
+    default_code = 'not_found'
 
 
 class BudgetCategoryNotFoundError(ValidationError):
     default_message = 'Category not found or does not belong to the specified budget period'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='category_not_found')
+    default_code = 'category_not_found'

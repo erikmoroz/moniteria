@@ -15,10 +15,11 @@ class ServiceError(Exception):
 
     http_status: int = 500
     default_message: str = 'An unexpected error occurred'
+    default_code: str | None = None
 
     def __init__(self, message: str | None = None, code: str | None = None):
         self.message = message if message is not None else self.default_message
-        self.code = code
+        self.code = code if code is not None else self.default_code
         super().__init__(self.message)
 
 

@@ -11,7 +11,6 @@ from transactions.models import Transaction
 from workspaces.exceptions import (
     CurrencyDuplicateSymbolError,
     CurrencyNotFoundError,
-    WorkspaceCannotBeDeletedError,
 )
 from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 from workspaces.models import Currency, Workspace, WorkspaceMember
@@ -165,23 +164,31 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.current_workspace, ws1)
 
-    def test_delete_workspace_blocked_when_owner_has_no_other_workspace(self):
-        """Test that delete_workspace raises when owner has no other workspace."""
+    def test_delete_workspace_succeeds_when_owner_has_no_other_workspace(self):
+        """Test that delete_workspace succeeds and sets owner's current_workspace to None."""
         user = UserFactory()
         workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
 
-        with self.assertRaises(WorkspaceCannotBeDeletedError):
-            WorkspaceService.delete_workspace(user=user, workspace=workspace)
+        WorkspaceService.delete_workspace(user=user, workspace=workspace)
 
-    def test_delete_workspace_blocked_when_member_has_only_this_workspace(self):
-        """Deletion is blocked if any member has no other workspace."""
+        user.refresh_from_db()
+        self.assertIsNone(user.current_workspace_id)
+        self.assertFalse(Workspace.objects.filter(id=workspace.id).exists())
+
+    def test_delete_workspace_succeeds_when_member_has_only_this_workspace(self):
+        """Deletion succeeds; sole-workspace member ends up with current_workspace=None."""
         owner = UserFactory()
         member = UserFactory()
         ws = WorkspaceService.create_workspace(user=owner, name='WS', create_demo=False)
         WorkspaceMemberFactory(workspace=ws, user=member, role='member')
-        with self.assertRaises(WorkspaceCannotBeDeletedError):
-            WorkspaceService.delete_workspace(user=owner, workspace=ws)
-        self.assertTrue(Workspace.objects.filter(id=ws.id).exists())
+        member.current_workspace = ws
+        member.save()
+
+        WorkspaceService.delete_workspace(user=owner, workspace=ws)
+
+        member.refresh_from_db()
+        self.assertIsNone(member.current_workspace_id)
+        self.assertFalse(Workspace.objects.filter(id=ws.id).exists())
 
     def test_switches_all_affected_users(self):
         """Test that delete_workspace switches ALL users who had this as current workspace."""

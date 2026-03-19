@@ -68,14 +68,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['workspace-current'] });
     queryClient.invalidateQueries({ queryKey: ['workspaces'] });
     queryClient.invalidateQueries({ queryKey: ['budget-accounts'] });
-    queryClient.invalidateQueries({ queryKey: ['budget-periods'] });
-    queryClient.invalidateQueries({ queryKey: ['categories'] });
-    queryClient.invalidateQueries({ queryKey: ['budgets'] });
-    queryClient.invalidateQueries({ queryKey: ['transactions'] });
-    queryClient.invalidateQueries({ queryKey: ['planned-transactions'] });
-    queryClient.invalidateQueries({ queryKey: ['currency-exchanges'] });
-    queryClient.invalidateQueries({ queryKey: ['period-balances'] });
-    queryClient.invalidateQueries({ queryKey: ['reports'] });
+
+    const dataKeys = [
+      'budget-periods', 'categories', 'budgets',
+      'transactions', 'planned-transactions', 'currency-exchanges',
+      'period-balances', 'reports',
+    ];
+    for (const key of dataKeys) {
+      queryClient.removeQueries({ queryKey: [key] });
+    }
   };
 
   const switchMutation = useMutation({

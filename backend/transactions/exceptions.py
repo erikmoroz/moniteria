@@ -5,23 +5,17 @@ from common.exceptions import NotFoundError, ValidationError
 
 class TransactionNotFoundError(NotFoundError):
     default_message = 'Transaction not found'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='not_found')
+    default_code = 'not_found'
 
 
 class TransactionPeriodNotFoundError(ValidationError):
     default_message = 'No active budget period for the transaction date'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='period_not_found')
+    default_code = 'period_not_found'
 
 
 class TransactionCategoryNotFoundError(ValidationError):
     default_message = 'Category not found or does not belong to the assigned budget period'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='category_not_found')
+    default_code = 'category_not_found'
 
 
 class TransactionImportError(ValidationError):

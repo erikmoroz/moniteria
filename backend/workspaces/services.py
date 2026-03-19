@@ -1,14 +1,12 @@
 """Business logic for the workspaces app."""
 
 from django.db import transaction as db_transaction
-from django.db.models import Count
 
 from budget_accounts.models import BudgetAccount
 from workspaces.demo_fixtures import create_demo_fixtures
 from workspaces.exceptions import (
     CurrencyDuplicateSymbolError,
     CurrencyNotFoundError,
-    WorkspaceCannotBeDeletedError,
 )
 from workspaces.models import Currency, Role, Workspace, WorkspaceMember
 
@@ -61,7 +59,7 @@ class WorkspaceService:
         """
         Deletes workspace and all its data.
         Switches current_workspace for ALL users who had this as their active workspace.
-        Raises WorkspaceCannotBeDeletedError if any member has no other workspace.
+        Users with no other workspace will have current_workspace set to None.
         """
         from budget_accounts.models import BudgetAccount
         from currency_exchanges.models import CurrencyExchange
@@ -72,20 +70,11 @@ class WorkspaceService:
         workspace = Workspace.objects.select_for_update().get(id=workspace.id)
         workspace_id = workspace.id
 
-        members_in_ws = WorkspaceMember.objects.filter(workspace_id=workspace_id).values_list('user_id', flat=True)
-        sole_members = (
-            UserModel.objects.filter(id__in=members_in_ws)
-            .annotate(ws_count=Count('workspace_memberships'))
-            .filter(ws_count=1)
-        )
-        if sole_members.exists():
-            raise WorkspaceCannotBeDeletedError()
-
         affected_users = list(UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id))
 
         affected_user_ids = [u.id for u in affected_users] + [user.id]
 
-        UserModel.objects.filter(id__in=affected_user_ids).select_for_update()
+        list(UserModel.objects.filter(id__in=affected_user_ids).select_for_update())
 
         memberships = (
             WorkspaceMember.objects.filter(user_id__in=affected_user_ids)

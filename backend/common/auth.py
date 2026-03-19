@@ -40,9 +40,14 @@ class WorkspaceJWTAuth(JWTAuth):
     """
 
     def authenticate(self, request, token: str):
+        from workspaces.models import WorkspaceMember
+
         user = super().authenticate(request, token)
         if user is not None and not user.current_workspace_id:
             raise HttpError(400, 'No active workspace. Please create or join a workspace.')
+        if user is not None:
+            if not WorkspaceMember.objects.filter(workspace_id=user.current_workspace_id, user=user).exists():
+                raise HttpError(403, 'Not a member of this workspace')
         return user
 
 

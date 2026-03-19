@@ -1,13 +1,11 @@
 """Custom exceptions for users app."""
 
-from common.exceptions import NotFoundError, ValidationError
+from common.exceptions import AuthenticationError, NotFoundError, ValidationError
 
 
-class UserInvalidPasswordError(ValidationError):
+class UserInvalidPasswordError(AuthenticationError):
     default_message = 'Invalid current password'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='invalid_password')
+    default_code = 'invalid_password'
 
 
 class UserInvalidConsentTypeError(ValidationError):
@@ -17,9 +15,7 @@ class UserInvalidConsentTypeError(ValidationError):
 
 class UserConsentNotFoundError(NotFoundError):
     default_message = 'No active consent found for this type'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='consent_not_found')
+    default_code = 'consent_not_found'
 
 
 class UserValidationError(ValidationError):

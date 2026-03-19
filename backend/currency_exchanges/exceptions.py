@@ -5,16 +5,12 @@ from common.exceptions import NotFoundError, ValidationError
 
 class CurrencyExchangeNotFoundError(NotFoundError):
     default_message = 'Exchange not found'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='not_found')
+    default_code = 'not_found'
 
 
 class CurrencyExchangePeriodNotFoundError(NotFoundError):
     default_message = 'Budget period not found'
-
-    def __init__(self, message: str | None = None):
-        super().__init__(message, code='period_not_found')
+    default_code = 'period_not_found'
 
 
 class CurrencyExchangeImportError(ValidationError):

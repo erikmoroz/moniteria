@@ -29,7 +29,7 @@ class AccountDeletionTests(AuthMixin, TestCase):
         self.assertFalse(Workspace.objects.filter(id=workspace_id).exists())
 
     def test_delete_account_wrong_password(self):
-        """Deletion with wrong password should return 400 (validation error, not auth failure)."""
+        """Deletion with wrong password should return 401 (authentication error)."""
         response = self.client.delete(
             '/api/users/me',
             {'password': 'wrongpassword'},
@@ -37,7 +37,7 @@ class AccountDeletionTests(AuthMixin, TestCase):
             **self.auth_headers(),
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 401)
         self.assertTrue(User.objects.filter(id=self.user.id).exists())
 
     def test_delete_account_blocked_by_shared_workspace(self):
