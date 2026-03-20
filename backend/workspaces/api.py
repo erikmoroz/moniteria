@@ -8,7 +8,6 @@ from ninja.errors import HttpError
 from common.auth import JWTAuth, WorkspaceJWTAuth
 from common.permissions import require_role
 from core.schemas import MessageOut
-from workspaces.exceptions import WorkspaceNotFoundError
 from workspaces.models import ADMIN_ROLES, Role, Workspace, WorkspaceMember
 from workspaces.schemas import (
     CurrencyCreate,
@@ -57,24 +56,6 @@ def delete_currency(request: HttpRequest, currency_id: int):
 
 
 # =============================================================================
-# Helper Functions
-# =============================================================================
-
-
-def validate_workspace_access(workspace_id: int, user) -> Workspace:
-    """Validate that the workspace exists and the user is a member of it."""
-    workspace = Workspace.objects.filter(id=workspace_id).first()
-    if not workspace:
-        raise WorkspaceNotFoundError()
-
-    member = WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user=user,
-    ).first()
-    if not member:
-        raise WorkspaceNotFoundError()
-
-    return workspace
 
 
 def _workspace_response(workspace: Workspace, role: str) -> dict:
@@ -134,7 +115,7 @@ def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
 @router.delete('/{workspace_id}', response={204: None}, auth=JWTAuth())
 def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
     """Delete a workspace. Only the owner can delete it."""
-    workspace = validate_workspace_access(workspace_id, request.auth)
+    workspace = WorkspaceMemberService.validate_access(workspace_id, request.auth)
     require_role(request.auth, workspace_id, [Role.OWNER])
     WorkspaceService.delete_workspace(user=request.auth, workspace=workspace)
     return 204, None
@@ -154,7 +135,8 @@ def switch_workspace(request: HttpRequest, workspace_id: int):
     if not member:
         raise HttpError(404, 'Workspace not found')
 
-    # Update user's current workspace
+    # Setting _id directly avoids loading the Workspace object; Django's
+    # update_fields=['current_workspace'] maps to the same DB column.
     user.current_workspace_id = workspace_id
     user.save(update_fields=['current_workspace'])
 
@@ -178,7 +160,7 @@ def list_workspace_members(request: HttpRequest, workspace_id: int):
     user = request.auth
 
     # Validate user has access to this workspace
-    validate_workspace_access(workspace_id, user)
+    WorkspaceMemberService.validate_access(workspace_id, user)
 
     members_with_users = (
         WorkspaceMember.objects.filter(workspace_id=workspace_id)
@@ -211,7 +193,7 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
     - If user doesn't exist: Create user with provided password, add to workspace
     """
     user = request.auth
-    validate_workspace_access(workspace_id, user)
+    WorkspaceMemberService.validate_access(workspace_id, user)
     require_role(user, workspace_id, ADMIN_ROLES)
     return 201, WorkspaceMemberService.add_member(user, workspace_id, data)
 
@@ -243,7 +225,7 @@ def update_member_role(
     - Cannot change your own role
     """
     user = request.auth
-    validate_workspace_access(workspace_id, user)
+    WorkspaceMemberService.validate_access(workspace_id, user)
     current_role = require_role(user, workspace_id, ADMIN_ROLES)
     return WorkspaceMemberService.update_role(user, workspace_id, member_user_id, data.role, current_role)
 
@@ -259,7 +241,7 @@ def remove_member_from_workspace(request: HttpRequest, workspace_id: int, member
     - Cannot remove yourself (use leave endpoint instead)
     """
     user = request.auth
-    validate_workspace_access(workspace_id, user)
+    WorkspaceMemberService.validate_access(workspace_id, user)
     current_role = require_role(user, workspace_id, ADMIN_ROLES)
     WorkspaceMemberService.remove_member(user, workspace_id, member_user_id, current_role)
     return 204, None
@@ -282,6 +264,6 @@ def reset_member_password(
     - Cannot reset owner's password
     """
     user = request.auth
-    validate_workspace_access(workspace_id, user)
+    WorkspaceMemberService.validate_access(workspace_id, user)
     current_role = require_role(user, workspace_id, ADMIN_ROLES)
     return WorkspaceMemberService.reset_password(user, workspace_id, user_id, data.new_password, current_role)

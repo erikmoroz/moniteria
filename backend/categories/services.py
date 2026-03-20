@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from django.db import IntegrityError
 
-from budget_periods.exceptions import BudgetPeriodNotFoundError
 from budget_periods.services import BudgetPeriodService
 from categories.exceptions import (
     CategoryDuplicateNameError,
@@ -52,9 +51,7 @@ class CategoryService:
         if budget_period_id is None:
             return []
 
-        try:
-            BudgetPeriodService.get(budget_period_id, workspace_id)
-        except BudgetPeriodNotFoundError:
+        if not BudgetPeriod.objects.for_workspace(workspace_id).filter(id=budget_period_id).exists():
             return []
 
         return list(Category.objects.filter(budget_period_id=budget_period_id))

@@ -17,6 +17,7 @@ from workspaces.exceptions import (
     WorkspaceMemberLimitReachedError,
     WorkspaceMemberNotFoundError,
     WorkspaceMemberPasswordRequiredError,
+    WorkspaceNotFoundError,
     WorkspaceOwnerCannotLeaveError,
     WorkspaceOwnerPasswordResetError,
     WorkspaceOwnerRemoveError,
@@ -161,6 +162,22 @@ class CurrencyService:
 
 
 class WorkspaceMemberService:
+    @staticmethod
+    def validate_access(workspace_id: int, user) -> Workspace:
+        """Validate that the workspace exists and the user is a member of it."""
+        workspace = Workspace.objects.filter(id=workspace_id).first()
+        if not workspace:
+            raise WorkspaceNotFoundError()
+
+        member = WorkspaceMember.objects.filter(
+            workspace_id=workspace_id,
+            user=user,
+        ).first()
+        if not member:
+            raise WorkspaceNotFoundError()
+
+        return workspace
+
     @staticmethod
     def get_member(workspace_id: int, user_id: int) -> WorkspaceMember | None:
         """Get a workspace member by user ID within a workspace."""

@@ -82,12 +82,14 @@ class BudgetAccountService:
         return account
 
     @staticmethod
+    @db_transaction.atomic
     def delete(workspace_id: int, account_id: int) -> None:
         """Delete a budget account."""
         account = BudgetAccountService.get(account_id, workspace_id)
         account.delete()
 
     @staticmethod
+    @db_transaction.atomic
     def toggle_archive(user, workspace_id: int, account_id: int) -> BudgetAccount:
         """Toggle archive status of a budget account."""
         account = BudgetAccountService.get(account_id, workspace_id)
