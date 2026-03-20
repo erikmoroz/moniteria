@@ -29,11 +29,17 @@ class TestWorkspaceScopedQuerySet(TestCase):
         self.assertEqual(ws1_currencies.count(), 4)
         self.assertEqual(ws2_currencies.count(), 4)
 
-        ws1_symbols = set(ws1_currencies.values_list('symbol', flat=True))
+        ws1_ids = set(ws1_currencies.values_list('id', flat=True))
+        ws2_ids = set(ws2_currencies.values_list('id', flat=True))
 
-        for symbol in ws1_symbols:
-            self.assertTrue(Currency.objects.filter(symbol=symbol, workspace=ws1).exists())
-            self.assertFalse(Currency.objects.filter(symbol=symbol, workspace=ws2).exists())
+        self.assertEqual(len(ws1_ids), 4)
+        self.assertEqual(len(ws2_ids), 4)
+        self.assertEqual(len(ws1_ids & ws2_ids), 0)
+
+        for currency in ws1_currencies:
+            self.assertEqual(currency.workspace_id, ws1.id)
+        for currency in ws2_currencies:
+            self.assertEqual(currency.workspace_id, ws2.id)
 
     def test_for_workspace_filters_by_nested_fk_path(self):
         ws1 = WorkspaceFactory()
