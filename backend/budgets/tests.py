@@ -23,18 +23,19 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
     def setUp(self):
         """Set up test data for budgets API tests."""
         super().setUp()
-        # Create an additional budget account for testing
+        self.currencies = {c.symbol: c for c in self.workspace.currencies.all()}
+
+        usd_currency = self.currencies['USD']
         self.other_account = BudgetAccount.objects.create(
             workspace=self.workspace,
             name='Other Account',
             description='Another budget account',
-            default_currency='USD',
+            default_currency=usd_currency,
             is_active=True,
             display_order=1,
             created_by=self.user,
         )
 
-        # Create budget periods
         self.period1 = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
             name='January 2025',
@@ -62,7 +63,6 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create categories
         self.category1 = Category.objects.create(
             budget_period=self.period1,
             name='Groceries',
@@ -81,11 +81,10 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create some test budgets
         self.budget1 = Budget.objects.create(
             budget_period=self.period1,
             category=self.category1,
-            currency='PLN',
+            currency=self.currencies['PLN'],
             amount=Decimal('1500.00'),
             created_by=self.user,
             updated_by=self.user,
@@ -94,7 +93,7 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
         self.budget2 = Budget.objects.create(
             budget_period=self.period1,
             category=self.category2,
-            currency='PLN',
+            currency=self.currencies['PLN'],
             amount=Decimal('500.00'),
             created_by=self.user,
             updated_by=self.user,
@@ -103,7 +102,7 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
         self.budget3 = Budget.objects.create(
             budget_period=self.period2,
             category=self.category3,
-            currency='EUR',
+            currency=self.currencies['EUR'],
             amount=Decimal('200.00'),
             created_by=self.user,
             updated_by=self.user,
@@ -158,12 +157,11 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
         self.assertEqual(data['amount'], '300.00')
         self.assertEqual(data['category']['id'], self.category1.id)
 
-        # Verify budget was created in database
         self.assertTrue(
             Budget.objects.filter(
                 budget_period=self.period1,
                 category=self.category1,
-                currency='USD',
+                currency=self.currencies['USD'],
                 amount=Decimal('300.00'),
             ).exists()
         )
@@ -199,10 +197,9 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
 
     def test_create_budget_with_period_from_other_workspace_fails(self):
         """Test that creating a budget with a period from another workspace fails."""
-        # Create another workspace with a period
-        from workspaces.models import Workspace, WorkspaceMember
+        from workspaces.factories import WorkspaceFactory
 
-        other_workspace = Workspace.objects.create(name='Other Workspace')
+        other_workspace = WorkspaceFactory(name='Other Workspace')
         other_user = User.objects.create_user(
             email='other@example.com',
             password='otherpass123',
@@ -217,10 +214,11 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
             role='owner',
         )
 
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_pln,
             created_by=other_user,
         )
 
@@ -297,10 +295,9 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
         self.assertEqual(data['amount'], '750.00')
         self.assertEqual(data['currency'], 'PLN')
 
-        # Verify in database
         self.budget1.refresh_from_db()
         self.assertEqual(self.budget1.amount, Decimal('750.00'))
-        self.assertEqual(self.budget1.currency, 'PLN')
+        self.assertEqual(self.budget1.currency, self.currencies['PLN'])
 
     def test_update_budget_partial_update(self):
         """Test updating only some fields of a budget."""
@@ -310,8 +307,7 @@ class BudgetsAPITestCase(AuthMixin, APIClientMixin, TestCase):
         data = self.put(f'/api/budgets/{self.budget1.id}', payload, **self.auth_headers())
         self.assertStatus(200)
         self.assertEqual(data['amount'], '2000.00')
-        # Other fields should remain unchanged
-        self.assertEqual(data['currency'], self.budget1.currency)
+        self.assertEqual(data['currency'], self.budget1.currency.symbol)
         self.assertEqual(data['category']['id'], self.budget1.category_id)
 
     def test_update_budget_not_found(self):
