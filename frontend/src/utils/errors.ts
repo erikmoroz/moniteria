@@ -1,6 +1,8 @@
-import type { AxiosError } from 'axios'
+import axios from 'axios'
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  const err = error as AxiosError<{ detail?: string }>
-  return err.response?.data?.detail || fallback
+  if (axios.isAxiosError<{ detail?: string }>(error)) {
+    return error.response?.data?.detail || fallback
+  }
+  return fallback
 }

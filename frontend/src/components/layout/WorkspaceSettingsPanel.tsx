@@ -11,7 +11,7 @@ interface WorkspaceSettingsPanelProps {
 }
 
 export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSettingsPanelProps) {
-  const { workspace, workspaces, deleteWorkspace, updateWorkspace } = useWorkspace()
+  const { workspace, deleteWorkspace, updateWorkspace } = useWorkspace()
   const [newName, setNewName] = useState(workspace?.name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -38,7 +38,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
   }, [isOpen, onClose])
 
   const isOwner = workspace?.user_role === 'owner'
-  const canDelete = isOwner && workspaces.length > 1
+  const canDelete = isOwner
 
   const handleSaveName = async () => {
     if (!newName.trim() || newName === workspace?.name) return
@@ -140,25 +140,13 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Danger Zone</h4>
 
                   {!showDeleteConfirm ? (
-                    <>
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        disabled={!canDelete}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md ${
-                          canDelete
-                            ? 'text-red-700 bg-red-50 hover:bg-red-100'
-                            : 'text-gray-400 bg-gray-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <HiTrash className="h-4 w-4" />
-                        Delete Workspace
-                      </button>
-                      {!canDelete && isOwner && (
-                        <p className="mt-1 text-xs text-gray-500">
-                          You must have at least one workspace. Create another workspace before deleting this one.
-                        </p>
-                      )}
-                    </>
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100"
+                    >
+                      <HiTrash className="h-4 w-4" />
+                      Delete Workspace
+                    </button>
                   ) : (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-start gap-3">
@@ -174,7 +162,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                           <div className="flex gap-2 mt-3">
                             <button
                               onClick={handleDelete}
-                              disabled={isDeleting || !canDelete}
+                              disabled={isDeleting}
                               className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50"
                             >
                               {isDeleting ? 'Deleting...' : 'Yes, delete'}

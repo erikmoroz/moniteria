@@ -3,9 +3,9 @@ import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import Sidebar from './Sidebar'
-import { HiMenu, HiPlus } from 'react-icons/hi'
+import { HiMenu } from 'react-icons/hi'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
-import toast from 'react-hot-toast'
+import CreateWorkspaceForm, { CreateWorkspaceButton } from './CreateWorkspaceForm'
 
 const SIDEBAR_COLLAPSED_KEY = 'monie-sidebar-collapsed'
 
@@ -14,25 +14,7 @@ interface MainLayoutProps {
 }
 
 function NoWorkspaceMessage() {
-  const { createWorkspace } = useWorkspace()
-  const [isCreating, setIsCreating] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [name, setName] = useState('')
-
-  const handleCreate = async () => {
-    if (!name.trim()) return
-    setIsCreating(true)
-    try {
-      await createWorkspace(name.trim())
-      toast.success('Workspace created')
-      setShowForm(false)
-      setName('')
-    } catch {
-      toast.error('Failed to create workspace')
-    } finally {
-      setIsCreating(false)
-    }
-  }
 
   return (
     <div className="flex items-center justify-center h-full">
@@ -41,41 +23,9 @@ function NoWorkspaceMessage() {
         <p className="text-gray-500 mb-4">Create a workspace or ask to be added to one.</p>
         
         {!showForm ? (
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
-          >
-            <HiPlus className="h-4 w-4" />
-            Create Workspace
-          </button>
+          <CreateWorkspaceButton onClick={() => setShowForm(true)} />
         ) : (
-          <div className="flex flex-col items-center gap-3">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Workspace name"
-              className="block w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleCreate}
-                disabled={isCreating || !name.trim()}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isCreating ? 'Creating...' : 'Create'}
-              </button>
-              <button
-                onClick={() => { setShowForm(false); setName('') }}
-                disabled={isCreating}
-                className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          <CreateWorkspaceForm onCancel={() => setShowForm(false)} />
         )}
       </div>
     </div>

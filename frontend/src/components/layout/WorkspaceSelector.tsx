@@ -3,6 +3,7 @@ import { HiCheck, HiPlus, HiCog, HiOfficeBuilding } from 'react-icons/hi'
 import toast from 'react-hot-toast'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
 import { getApiErrorMessage } from '../../utils/errors'
+import CreateWorkspaceForm from './CreateWorkspaceForm'
 import type { Workspace } from '../../types'
 
 interface WorkspaceSelectorProps {
@@ -10,11 +11,9 @@ interface WorkspaceSelectorProps {
 }
 
 export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorProps) {
-  const { workspace, workspaces, switchWorkspace, createWorkspace, isLoading } = useWorkspace()
+  const { workspace, workspaces, switchWorkspace, isLoading } = useWorkspace()
   const [isOpen, setIsOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [switchingToId, setSwitchingToId] = useState<number | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -55,22 +54,6 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       toast.error(getApiErrorMessage(error, 'Failed to switch workspace'))
     } finally {
       setSwitchingToId(null)
-    }
-  }
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return
-    setIsSubmitting(true)
-    try {
-      await createWorkspace(newName.trim())
-      setNewName('')
-      setIsCreating(false)
-      setIsOpen(false)
-    } catch (error) {
-      console.error('Failed to create workspace:', error)
-      toast.error(getApiErrorMessage(error, 'Failed to create workspace'))
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -117,39 +100,11 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       {isOpen && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
           {isCreating ? (
-            <div className="p-2">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Workspace name"
-                maxLength={100}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreate()
-                  if (e.key === 'Escape') {
-                    e.stopPropagation()
-                    setIsCreating(false)
-                  }
-                }}
-              />
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={handleCreate}
-                  disabled={!newName.trim() || isSubmitting}
-                  className="flex-1 px-2 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Create
-                </button>
-                <button
-                  onClick={() => setIsCreating(false)}
-                  className="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            <CreateWorkspaceForm
+              compact
+              onCancel={() => setIsCreating(false)}
+              onCreated={() => setIsOpen(false)}
+            />
           ) : (
             <>
               {workspaces.map((ws) => (
@@ -178,7 +133,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
 
               <div className="border-t border-gray-100 mt-1 pt-1">
                 <button
-                  onClick={() => { setNewName(''); setIsCreating(true); }}
+                  onClick={() => setIsCreating(true)}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   <HiPlus className="h-4 w-4" />
