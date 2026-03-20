@@ -3,6 +3,7 @@ import { HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
 import { HiX } from 'react-icons/hi'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
 import toast from 'react-hot-toast'
+import { getApiErrorMessage } from '../../utils/errors'
 
 interface WorkspaceSettingsPanelProps {
   isOpen: boolean
@@ -50,8 +51,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
       toast.success('Workspace name updated')
       onClose()
     } catch (error) {
-      const err = error as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed to update workspace name')
+      toast.error(getApiErrorMessage(error, 'Failed to update workspace name'))
     } finally {
       setIsSaving(false)
     }
@@ -66,8 +66,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
       setShowDeleteConfirm(false)
       onClose()
     } catch (error) {
-      const err = error as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed to delete workspace')
+      toast.error(getApiErrorMessage(error, 'Failed to delete workspace'))
     } finally {
       setIsDeleting(false)
     }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { HiCheck, HiPlus, HiCog, HiOfficeBuilding } from 'react-icons/hi'
 import toast from 'react-hot-toast'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
+import { getApiErrorMessage } from '../../utils/errors'
 import type { Workspace } from '../../types'
 
 interface WorkspaceSelectorProps {
@@ -50,8 +51,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to switch workspace:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed to switch workspace')
+      toast.error(getApiErrorMessage(error, 'Failed to switch workspace'))
     } finally {
       setIsSubmitting(false)
     }
@@ -67,8 +67,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to create workspace:', error)
-      const err = error as { response?: { data?: { detail?: string } } }
-      toast.error(err.response?.data?.detail || 'Failed to create workspace')
+      toast.error(getApiErrorMessage(error, 'Failed to create workspace'))
     } finally {
       setIsSubmitting(false)
     }
