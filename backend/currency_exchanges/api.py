@@ -105,5 +105,5 @@ def delete_exchange(request: HttpRequest, exchange_id: int):
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, WRITE_ROLES)
-    CurrencyExchangeService.delete(user, workspace_id, exchange_id)
+    CurrencyExchangeService.delete(workspace_id, exchange_id)
     return 204, None

@@ -114,7 +114,7 @@ class PlannedTransactionService:
         return planned
 
     @staticmethod
-    def delete(user, workspace_id: int, planned_id: int) -> None:
+    def delete(workspace_id: int, planned_id: int) -> None:
         """Delete a planned transaction."""
         planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
         planned.delete()

@@ -202,7 +202,7 @@ class TransactionService:
 
     @staticmethod
     @db_transaction.atomic
-    def delete(user, workspace_id: int, transaction_id: int) -> None:
+    def delete(workspace_id: int, transaction_id: int) -> None:
         """Delete a transaction and revert the period balance."""
         trans = TransactionService.get_transaction(transaction_id, workspace_id)
 

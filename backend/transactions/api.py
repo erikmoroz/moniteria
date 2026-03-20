@@ -122,5 +122,5 @@ def delete_transaction(request: HttpRequest, transaction_id: int):
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, WRITE_ROLES)
-    TransactionService.delete(user, workspace_id, transaction_id)
+    TransactionService.delete(workspace_id, transaction_id)
     return 204, None

@@ -129,7 +129,7 @@ def delete_planned(request: HttpRequest, planned_id: int):
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, WRITE_ROLES)
 
-    PlannedTransactionService.delete(user, workspace_id, planned_id)
+    PlannedTransactionService.delete(workspace_id, planned_id)
     return 204, None
 
 

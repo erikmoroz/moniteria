@@ -156,7 +156,7 @@ class CurrencyExchangeService:
 
     @staticmethod
     @db_transaction.atomic
-    def delete(user, workspace_id: int, exchange_id: int) -> None:
+    def delete(workspace_id: int, exchange_id: int) -> None:
         """Delete an exchange and revert period balances."""
         exchange = CurrencyExchangeService.get_exchange(exchange_id, workspace_id)
 
