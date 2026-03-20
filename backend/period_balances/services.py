@@ -1,5 +1,7 @@
 """Business logic for the period_balances app."""
 
+from __future__ import annotations
+
 from decimal import Decimal
 
 from django.db.models import Sum

@@ -43,7 +43,7 @@ class BudgetPeriodService:
         return (
             BudgetPeriod.objects.select_related('budget_account')
             .for_workspace(workspace_id)
-            .filter(start_date__lte=current_date, end_date__gte=current_date)
+            .containing(current_date)
             .first()
         )
 
