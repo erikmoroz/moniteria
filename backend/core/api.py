@@ -34,7 +34,7 @@ def register(request, data: RegisterIn):
         return 403, {'detail': 'Registration is disabled in demo mode'}
 
     if User.objects.filter(email=data.email).exists():
-        return 400, {'detail': 'User with this email already exists'}
+        return 400, {'error': 'User with this email already exists'}
 
     with transaction.atomic():
         user = User.objects.create_user(
