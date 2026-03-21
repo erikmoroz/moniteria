@@ -113,10 +113,8 @@ class AuthMixin:
     def setUp(self):
         """Set up authenticated user."""
         from django.core.cache import cache
-        from django.core.management import call_command
 
         cache.clear()
-        call_command('seed_legal_documents', verbosity=0)
 
         # Create workspace with currencies (handled by WorkspaceFactory post_generation)
         self.workspace = WorkspaceFactory(name=self.workspace_name)

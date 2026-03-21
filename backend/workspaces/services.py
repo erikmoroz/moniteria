@@ -84,6 +84,9 @@ class WorkspaceService:
         workspace = Workspace.objects.select_for_update().get(id=workspace.id)
         workspace_id = workspace.id
 
+        # Gather all users whose current_workspace points to this workspace.
+        # The caller (user) is handled separately at the end because they may
+        # still be mid-request; other affected users are updated via bulk_update.
         affected_users = list(UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id))
 
         affected_user_ids = [u.id for u in affected_users] + [user.id]
@@ -269,7 +272,9 @@ class WorkspaceMemberService:
         member.delete()
 
         if user.current_workspace_id == workspace_id:
-            next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+            next_workspace = (
+                Workspace.objects.filter(members__user=user).exclude(id=workspace_id).order_by('-id').first()
+            )
             user.current_workspace = next_workspace
             user.save(update_fields=['current_workspace'])
 
@@ -345,7 +350,7 @@ class WorkspaceMemberService:
 
         removed_user = User.objects.filter(id=member_user_id).first()
         if removed_user and removed_user.current_workspace_id == workspace_id:
-            next_workspace = Workspace.objects.filter(members__user=removed_user).first()
+            next_workspace = Workspace.objects.filter(members__user=removed_user).order_by('-id').first()
             removed_user.current_workspace = next_workspace
             removed_user.save(update_fields=['current_workspace'])
 
