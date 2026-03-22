@@ -83,7 +83,6 @@ class WorkspaceService:
         from users.models import User as UserModel
 
         workspace = Workspace.objects.select_for_update().get(id=workspace_id)
-        workspace_id = workspace.id
 
         # Gather all users whose current_workspace points to this workspace.
         # The caller (user) is handled separately at the end because they may
@@ -221,6 +220,10 @@ class WorkspaceMemberService:
                 user_id=existing_user.id,
                 role=data.role,
             )
+
+            if existing_user.current_workspace_id is None:
+                existing_user.current_workspace_id = workspace_id
+                existing_user.save(update_fields=['current_workspace'])
 
             return {
                 'message': f'Existing user {data.email} added to workspace',

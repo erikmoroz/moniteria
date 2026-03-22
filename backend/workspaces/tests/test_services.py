@@ -187,7 +187,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.current_workspace, ws2)
 
-        WorkspaceService.delete_workspace(user=user, workspace=ws2)
+        WorkspaceService.delete_workspace(user=user, workspace_id=ws2.id)
 
         user.refresh_from_db()
         self.assertEqual(user.current_workspace, ws1)
@@ -212,7 +212,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         member.current_workspace = ws
         member.save()
 
-        WorkspaceService.delete_workspace(user=owner, workspace=ws)
+        WorkspaceService.delete_workspace(user=owner, workspace_id=ws.id)
 
         member.refresh_from_db()
         self.assertIsNone(member.current_workspace_id)
@@ -235,7 +235,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         owner.current_workspace = workspace
         owner.save()
 
-        WorkspaceService.delete_workspace(user=owner, workspace=workspace)
+        WorkspaceService.delete_workspace(user=owner, workspace_id=workspace.id)
 
         owner.refresh_from_db()
         member.refresh_from_db()
@@ -447,6 +447,43 @@ class TestWorkspaceMemberService(TestCase):
 
         with self.assertRaises(WorkspaceMemberPasswordRequiredError):
             WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+    def test_add_existing_user_with_no_workspace_sets_current(self):
+        """Adding an existing user with current_workspace=None sets it to the new workspace."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+        existing_user = UserFactory(current_workspace=None)
+
+        class Data:
+            email = existing_user.email
+            role = 'member'
+            password = None
+            full_name = None
+
+        WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+        existing_user.refresh_from_db()
+        self.assertEqual(existing_user.current_workspace_id, workspace.id)
+
+    def test_add_existing_user_preserves_current_workspace(self):
+        """Adding an existing user who already has a workspace does not change it."""
+        workspace = WorkspaceFactory()
+        other_ws = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+        existing_user = UserFactory(current_workspace=other_ws)
+
+        class Data:
+            email = existing_user.email
+            role = 'member'
+            password = None
+            full_name = None
+
+        WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+        existing_user.refresh_from_db()
+        self.assertEqual(existing_user.current_workspace_id, other_ws.id)
 
     def test_leave_success(self):
         """Test successfully leaving a workspace."""

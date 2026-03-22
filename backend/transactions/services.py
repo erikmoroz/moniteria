@@ -274,7 +274,14 @@ class TransactionService:
             )
 
         Transaction.objects.bulk_create(new_transactions)
+
+        # Aggregate amounts by (currency, type) to minimise balance update queries.
+        aggregated: dict[tuple, Decimal] = {}
         for t in new_transactions:
-            TransactionService.update_period_balance(period_id, t.currency, t.type, t.amount, 'add')
+            key = (t.currency, t.type)
+            aggregated[key] = aggregated.get(key, Decimal(0)) + t.amount
+
+        for (currency, trans_type), total in aggregated.items():
+            TransactionService.update_period_balance(period_id, currency, trans_type, total, 'add')
 
         return len(new_transactions)

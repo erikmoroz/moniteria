@@ -193,7 +193,7 @@ Balances are updated incrementally on:
 4. System creates:
    - New workspace with user as owner
    - Default "General" budget account
-   - Default currencies (USD, EUR, UAH)
+   - Default currencies (USD, UAH, PLN, EUR)
 5. System auto-switches user to new workspace
 6. All data views refresh to empty workspace
 ```

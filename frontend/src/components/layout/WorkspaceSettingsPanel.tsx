@@ -38,6 +38,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
   }, [isOpen, onClose])
 
   const isOwner = workspace?.user_role === 'owner'
+  const canEditName = workspace?.user_role === 'owner' || workspace?.user_role === 'admin'
   const canDelete = isOwner
 
   const handleSaveName = async () => {
@@ -102,11 +103,11 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                     id="workspace-name"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    disabled={!isOwner}
+                    disabled={!canEditName}
                     maxLength={100}
                     className="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed px-3 py-2 border"
                   />
-                  {isOwner && (
+                  {canEditName && (
                     <button
                       onClick={handleSaveName}
                       disabled={isSaving || !newName.trim() || newName === workspace?.name}
@@ -116,8 +117,8 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                     </button>
                   )}
                 </div>
-                {!isOwner && (
-                  <p className="mt-1 text-xs text-gray-500">Only the workspace owner can change the name.</p>
+                {!canEditName && (
+                  <p className="mt-1 text-xs text-gray-500">Only workspace owners and admins can change the name.</p>
                 )}
               </div>
 
