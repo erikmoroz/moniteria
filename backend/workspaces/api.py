@@ -3,11 +3,11 @@
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest
 from ninja import Router
-from ninja.errors import HttpError
 
 from common.auth import JWTAuth, WorkspaceJWTAuth
 from common.permissions import require_role
 from core.schemas import MessageOut
+from workspaces.exceptions import WorkspaceNotFoundError
 from workspaces.models import ADMIN_ROLES, Role, Workspace, WorkspaceMember
 from workspaces.schemas import (
     CurrencyCreate,
@@ -58,11 +58,11 @@ def delete_currency(request: HttpRequest, currency_id: int):
 # =============================================================================
 
 
-def _workspace_response(workspace: Workspace, role: str) -> dict:
-    """Build a WorkspaceOut-compatible dict with user_role included."""
+def _workspace_response(workspace: Workspace, role: str) -> WorkspaceOut:
+    """Build a WorkspaceOut-compatible response with user_role included."""
     ws = WorkspaceOut.model_validate(workspace)
     ws.user_role = role
-    return ws.model_dump()
+    return ws
 
 
 # =============================================================================
@@ -94,7 +94,7 @@ def get_current_workspace_info(request: HttpRequest):
     try:
         member = WorkspaceMember.objects.select_related('workspace').get(workspace_id=workspace_id, user=user)
     except WorkspaceMember.DoesNotExist:
-        raise HttpError(404, 'Workspace not found')
+        raise WorkspaceNotFoundError()
     return _workspace_response(member.workspace, member.role)
 
 
@@ -115,9 +115,9 @@ def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
 @router.delete('/{workspace_id}', response={204: None}, auth=JWTAuth())
 def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
     """Delete a workspace. Only the owner can delete it."""
-    workspace = WorkspaceMemberService.validate_access(workspace_id, request.auth)
+    WorkspaceMemberService.validate_access(workspace_id, request.auth)
     require_role(request.auth, workspace_id, [Role.OWNER])
-    WorkspaceService.delete_workspace(user=request.auth, workspace=workspace)
+    WorkspaceService.delete_workspace(user=request.auth, workspace_id=workspace_id)
     return 204, None
 
 
@@ -133,7 +133,7 @@ def switch_workspace(request: HttpRequest, workspace_id: int):
     ).first()
 
     if not member:
-        raise HttpError(404, 'Workspace not found')
+        raise WorkspaceNotFoundError()
 
     # Setting _id directly avoids loading the Workspace object; Django's
     # update_fields=['current_workspace'] maps to the same DB column.

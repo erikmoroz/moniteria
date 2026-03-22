@@ -49,7 +49,7 @@ class PeriodBalanceService:
         return balance
 
     @staticmethod
-    def validate_period(period_id: int, workspace_id: int) -> BudgetPeriod:
+    def get_validated_period(period_id: int, workspace_id: int) -> BudgetPeriod:
         """Validate period belongs to workspace. Raises PeriodBalancePeriodNotFoundError if not."""
         from budget_periods.models import BudgetPeriod
 
@@ -128,7 +128,7 @@ class PeriodBalanceService:
     @staticmethod
     def recalculate_all(workspace_id: int, period_id: int) -> list[PeriodBalance]:
         """Recalculate all currency balances for a period."""
-        PeriodBalanceService.validate_period(period_id, workspace_id)
+        PeriodBalanceService.get_validated_period(period_id, workspace_id)
         currencies = get_workspace_currencies(workspace_id)
         return [PeriodBalanceService.recalculate(period_id, currency.symbol) for currency in currencies]
 

@@ -39,7 +39,17 @@ def get_workspace_currencies(workspace_id: int) -> list:
 
 
 def delete_workspace_financial_records(workspace_id: int) -> None:
-    """Delete financial records that have PROTECT FKs on Currency."""
+    """Delete records that have PROTECT FKs on Currency and are NOT cascade-deleted
+    through BudgetAccount.
+
+    Call this BEFORE deleting BudgetAccounts. The deletion order matters:
+    1. This function: Transaction, PlannedTransaction, CurrencyExchange (PROTECT on Currency)
+    2. Caller deletes BudgetAccount (CASCADE: BudgetPeriod -> Budget, PeriodBalance, Category)
+    3. Caller deletes Workspace (CASCADE: Currency, WorkspaceMember)
+
+    Budget and PeriodBalance also have PROTECT FKs on Currency, but they cascade
+    from BudgetPeriod (step 2), so they don't need explicit deletion here.
+    """
     from currency_exchanges.models import CurrencyExchange
     from planned_transactions.models import PlannedTransaction
     from transactions.models import Transaction

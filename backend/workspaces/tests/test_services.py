@@ -6,6 +6,7 @@ from budget_accounts.models import BudgetAccount
 from budget_periods.models import BudgetPeriod
 from budgets.models import Budget
 from categories.models import Category
+from common.exceptions import ValidationError
 from common.tests.factories import UserFactory
 from currency_exchanges.models import CurrencyExchange
 from planned_transactions.models import PlannedTransaction
@@ -167,7 +168,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         planned_id = planned.id
         exchange_id = exchange.id
 
-        WorkspaceService.delete_workspace(user=user, workspace=workspace)
+        WorkspaceService.delete_workspace(user=user, workspace_id=workspace.id)
 
         self.assertFalse(Workspace.objects.filter(id=workspace_id).exists())
         self.assertFalse(WorkspaceMember.objects.filter(workspace_id=workspace_id).exists())
@@ -196,7 +197,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         user = UserFactory()
         workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
 
-        WorkspaceService.delete_workspace(user=user, workspace=workspace)
+        WorkspaceService.delete_workspace(user=user, workspace_id=workspace.id)
 
         user.refresh_from_db()
         self.assertIsNone(user.current_workspace_id)
@@ -276,7 +277,7 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         exchange.budget_period = None
         exchange.save()
 
-        WorkspaceService.delete_workspace(user=user, workspace=workspace)
+        WorkspaceService.delete_workspace(user=user, workspace_id=workspace.id)
 
         self.assertFalse(CurrencyExchange.objects.filter(id=exchange_id).exists())
 
@@ -582,3 +583,31 @@ class TestWorkspaceMemberService(TestCase):
 
         with self.assertRaises(WorkspaceOwnerPasswordResetError):
             WorkspaceMemberService.reset_password(admin, workspace.id, owner.id, 'newpass', 'admin')
+
+    def test_update_role_rejects_owner_role(self):
+        """Test that update_role raises ValidationError when trying to assign owner role."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        member = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+
+        with self.assertRaises(ValidationError) as context:
+            WorkspaceMemberService.update_role(owner, workspace.id, member.id, 'owner', 'owner')
+
+        self.assertIn('owner', str(context.exception.message))
+        self.assertIn('Cannot assign role', str(context.exception.message))
+
+    def test_update_role_rejects_invalid_role_string(self):
+        """Test that update_role raises ValidationError for invalid role strings."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        member = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+
+        with self.assertRaises(ValidationError) as context:
+            WorkspaceMemberService.update_role(owner, workspace.id, member.id, 'superadmin', 'owner')
+
+        self.assertIn('superadmin', str(context.exception.message))
+        self.assertIn('Cannot assign role', str(context.exception.message))

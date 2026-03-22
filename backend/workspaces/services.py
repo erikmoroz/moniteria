@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
 
 from budget_accounts.models import BudgetAccount
+from common.exceptions import ValidationError
 from workspaces.demo_fixtures import create_demo_fixtures
 from workspaces.exceptions import (
     CurrencyDuplicateSymbolError,
@@ -72,7 +73,7 @@ class WorkspaceService:
 
     @staticmethod
     @db_transaction.atomic
-    def delete_workspace(user, workspace: Workspace) -> None:
+    def delete_workspace(user, workspace_id: int) -> None:
         """
         Deletes workspace and all its data.
         Switches current_workspace for ALL users who had this as their active workspace.
@@ -81,7 +82,7 @@ class WorkspaceService:
         from common.services.base import delete_workspace_financial_records
         from users.models import User as UserModel
 
-        workspace = Workspace.objects.select_for_update().get(id=workspace.id)
+        workspace = Workspace.objects.select_for_update().get(id=workspace_id)
         workspace_id = workspace.id
 
         # Gather all users whose current_workspace points to this workspace.
@@ -280,6 +281,8 @@ class WorkspaceMemberService:
 
         return {'message': 'Successfully left workspace'}
 
+    ASSIGNABLE_ROLES = (Role.ADMIN, Role.MEMBER, Role.VIEWER)
+
     @staticmethod
     def update_role(user, workspace_id: int, member_user_id: int, new_role: str, current_role: str) -> dict:
         """
@@ -290,6 +293,11 @@ class WorkspaceMemberService:
         - Admin cannot change other admins or owner
         - Cannot change your own role
         """
+        if new_role not in WorkspaceMemberService.ASSIGNABLE_ROLES:
+            raise ValidationError(
+                f'Cannot assign role: {new_role}. Allowed: {", ".join(WorkspaceMemberService.ASSIGNABLE_ROLES)}'
+            )
+
         member = WorkspaceMember.objects.filter(
             workspace_id=workspace_id,
             user_id=member_user_id,

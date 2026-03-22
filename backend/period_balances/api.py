@@ -34,7 +34,7 @@ def recalculate_balance(request, data: RecalculateRequest):
     workspace_id = request.auth.current_workspace_id
 
     require_role(user, workspace_id, WRITE_ROLES)
-    PeriodBalanceService.validate_period(data.budget_period_id, workspace_id)
+    PeriodBalanceService.get_validated_period(data.budget_period_id, workspace_id)
 
     balance = PeriodBalanceService.recalculate(data.budget_period_id, data.currency)
     return balance
