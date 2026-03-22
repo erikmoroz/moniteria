@@ -123,7 +123,7 @@ class TestListCategories(CategoriesTestCase):
         self.get('/api/categories', **self.auth_headers())
         self.assertStatus(400)
 
-    def test_list_categories_from_other_workspace_fails(self):
+    def test_list_categories_from_other_workspace_returns_empty(self):
         """Cross-workspace period access returns empty list (200), not 404.
 
         We intentionally do not raise 404 to avoid leaking whether the period

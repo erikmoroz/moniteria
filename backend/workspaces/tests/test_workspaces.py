@@ -980,3 +980,128 @@ class TestWorkspaceJWTAuthMembership(APIClientMixin, TestCase):
 
         self.get('/api/budget-accounts', **headers)
         self.assertStatus(200)
+
+
+class TestViewerCannotWrite(APIClientMixin, TestCase):
+    """Tests verifying viewer role is rejected on write endpoints."""
+
+    def setUp(self):
+        from datetime import date
+
+        from budget_accounts.models import BudgetAccount
+        from budget_periods.models import BudgetPeriod
+        from categories.models import Category
+        from common.auth import create_access_token
+        from workspaces.models import Currency
+
+        APIClientMixin.setUp(self)
+
+        self.workspace = WorkspaceFactory(name='Test Workspace')
+        self.viewer_user = UserFactory(
+            email='viewer@example.com',
+            current_workspace=self.workspace,
+        )
+        WorkspaceMemberFactory(
+            workspace=self.workspace,
+            user=self.viewer_user,
+            role='viewer',
+        )
+
+        self.auth_token = create_access_token(self.viewer_user)
+
+        self.account = BudgetAccount.objects.filter(workspace=self.workspace).first()
+        self.pln = Currency.objects.get(workspace=self.workspace, symbol='PLN')
+        self.period = BudgetPeriod.objects.create(
+            budget_account=self.account,
+            name='Jan 2025',
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 31),
+            created_by=self.viewer_user,
+            updated_by=self.viewer_user,
+        )
+        self.category = Category.objects.create(
+            budget_period=self.period,
+            name='Groceries',
+            created_by=self.viewer_user,
+        )
+
+    def auth_headers(self):
+        return {'HTTP_AUTHORIZATION': f'Bearer {self.auth_token}'}
+
+    def test_viewer_cannot_create_budget_account(self):
+        payload = {'name': 'New Account', 'default_currency_id': self.pln.id}
+        self.post('/api/budget-accounts', payload, **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_cannot_update_budget_account(self):
+        payload = {'name': 'Updated Name'}
+        self.put(f'/api/budget-accounts/{self.account.id}', payload, **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_cannot_delete_budget_account(self):
+        self.delete(f'/api/budget-accounts/{self.account.id}', **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_cannot_create_transaction(self):
+        payload = {
+            'date': '2025-01-15',
+            'description': 'Test',
+            'amount': '100.00',
+            'currency': 'PLN',
+            'type': 'expense',
+            'budget_period_id': self.period.id,
+        }
+        self.post('/api/transactions', payload, **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_cannot_update_category(self):
+        payload = {'name': 'Updated Category'}
+        self.put(f'/api/categories/{self.category.id}', payload, **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_cannot_delete_category(self):
+        self.delete(f'/api/categories/{self.category.id}', **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_cannot_create_budget(self):
+        from budgets.models import Budget
+
+        budget = Budget.objects.create(
+            budget_period=self.period,
+            category=self.category,
+            currency=self.pln,
+            amount=100,
+            created_by=self.viewer_user,
+            updated_by=self.viewer_user,
+        )
+        payload = {
+            'budget_period_id': self.period.id,
+            'category_id': self.category.id,
+            'currency': 'PLN',
+            'amount': '200.00',
+        }
+        self.post('/api/budgets', payload, **self.auth_headers())
+        self.assertStatus(403)
+        budget.delete()
+
+    def test_viewer_cannot_delete_budget(self):
+        from budgets.models import Budget
+
+        budget = Budget.objects.create(
+            budget_period=self.period,
+            category=self.category,
+            currency=self.pln,
+            amount=100,
+            created_by=self.viewer_user,
+            updated_by=self.viewer_user,
+        )
+        self.delete(f'/api/budgets/{budget.id}', **self.auth_headers())
+        self.assertStatus(403)
+
+    def test_viewer_can_read_budget_accounts(self):
+        self.get('/api/budget-accounts', **self.auth_headers())
+        self.assertStatus(200)
+
+    def test_viewer_can_read_transactions(self):
+        self.get(f'/api/transactions?budget_period_id={self.period.id}', **self.auth_headers())
+        self.assertStatus(200)
