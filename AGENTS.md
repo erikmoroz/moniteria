@@ -10,6 +10,12 @@ Monie is a personal finance tracking application built with Django 6, Django Nin
 
 ### Backend (Django)
 
+When running Python commands, always use the virtual environment:
+
+```bash
+backend/.venv/bin/python
+```
+
 ```bash
 cd backend
 
@@ -99,6 +105,30 @@ from workspaces.models import WRITE_ROLES
 - **Functions/Variables**: snake_case (`get_workspace_period`, `budget_period_id`)
 - **Constants**: UPPER_SNAKE_CASE (`WRITE_ROLES`, `TOKEN_KEY`)
 - **Schemas**: Suffix with purpose (`TransactionCreate`, `TransactionOut`, `TransactionImport`)
+
+### Return Early Pattern
+
+Use guard clauses and early returns to reduce nesting and improve readability:
+
+```python
+# Bad: deeply nested
+def process_transaction(data):
+    if data:
+        if data.amount > 0:
+            if data.currency:
+                return create_transaction(data)
+    return None
+
+# Good: return early
+def process_transaction(data):
+    if not data:
+        return None
+    if data.amount <= 0:
+        return None
+    if not data.currency:
+        return None
+    return create_transaction(data)
+```
 
 ### Django Ninja Endpoints
 

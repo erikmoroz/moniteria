@@ -206,6 +206,7 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     Business rules:
     - Owner cannot leave (must transfer ownership first)
     """
+    WorkspaceMemberService.validate_access(workspace_id, request.auth)
     return WorkspaceMemberService.leave(request.auth, workspace_id)
 
 

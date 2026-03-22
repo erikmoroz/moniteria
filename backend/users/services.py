@@ -304,7 +304,7 @@ class UserService:
         from period_balances.models import PeriodBalance
         from planned_transactions.models import PlannedTransaction
         from transactions.models import Transaction
-        from workspaces.models import WorkspaceMember
+        from workspaces.models import Currency, WorkspaceMember
 
         # 1. Profile
         profile = {
@@ -352,6 +352,7 @@ class UserService:
                 'role': membership.role,
                 'joined_at': membership.created_at.isoformat(),
                 'budget_accounts': [],
+                'currencies': list(Currency.objects.filter(workspace_id=ws.id).values('symbol', 'name')),
             }
 
             accounts = BudgetAccount.objects.filter(workspace=ws).select_related('default_currency')
@@ -416,6 +417,45 @@ class UserService:
                     account_entry['periods'].append(period_entry)
 
                 ws_entry['budget_accounts'].append(account_entry)
+
+            orphaned_transactions = list(
+                Transaction.objects.filter(
+                    budget_period__isnull=True,
+                    currency__workspace_id=ws.id,
+                )
+                .select_related('category', 'currency')
+                .values('date', 'description', 'amount', 'type', 'category__name', 'currency__symbol')
+            )
+            orphaned_planned = list(
+                PlannedTransaction.objects.filter(
+                    budget_period__isnull=True,
+                    currency__workspace_id=ws.id,
+                )
+                .select_related('currency')
+                .values('name', 'amount', 'planned_date', 'payment_date', 'status', 'currency__symbol')
+            )
+            orphaned_exchanges = list(
+                CurrencyExchange.objects.filter(
+                    budget_period__isnull=True,
+                    from_currency__workspace_id=ws.id,
+                )
+                .select_related('from_currency', 'to_currency')
+                .values(
+                    'date',
+                    'description',
+                    'from_amount',
+                    'to_amount',
+                    'exchange_rate',
+                    'from_currency__symbol',
+                    'to_currency__symbol',
+                )
+            )
+            if orphaned_transactions or orphaned_planned or orphaned_exchanges:
+                ws_entry['orphaned_records'] = {
+                    'transactions': orphaned_transactions,
+                    'planned_transactions': orphaned_planned,
+                    'currency_exchanges': orphaned_exchanges,
+                }
 
             workspace_data.append(ws_entry)
 

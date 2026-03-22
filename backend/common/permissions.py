@@ -19,7 +19,5 @@ def require_role(user, workspace_id: int, allowed_roles: list[str]) -> str:
         except WorkspaceMember.DoesNotExist:
             raise PermissionDeniedError('Not a member of this workspace')
     if role not in allowed_roles:
-        raise PermissionDeniedError(
-            f'Insufficient permissions. Required: {", ".join(allowed_roles)}. Your role: {role}'
-        )
+        raise PermissionDeniedError('Insufficient permissions')
     return role

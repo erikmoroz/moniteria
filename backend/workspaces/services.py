@@ -82,16 +82,24 @@ class WorkspaceService:
         from common.services.base import delete_workspace_financial_records
         from users.models import User as UserModel
 
-        workspace = Workspace.objects.select_for_update().get(id=workspace_id)
+        try:
+            workspace = Workspace.objects.select_for_update().get(id=workspace_id)
+        except Workspace.DoesNotExist:
+            raise WorkspaceNotFoundError()
 
         # Gather all users whose current_workspace points to this workspace.
         # The caller (user) is handled separately at the end because they may
         # still be mid-request; other affected users are updated via bulk_update.
-        affected_users = list(UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id))
+        affected_user_ids = list(
+            UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id).values_list('id', flat=True)
+        )
+        all_affected_ids = affected_user_ids + [user.id]
 
-        affected_user_ids = [u.id for u in affected_users] + [user.id]
+        # Lock all affected user rows
+        list(UserModel.objects.filter(id__in=all_affected_ids).select_for_update())
 
-        list(UserModel.objects.filter(id__in=affected_user_ids).select_for_update())
+        # Re-fetch affected users after acquiring lock
+        affected_users = list(UserModel.objects.filter(id__in=affected_user_ids))
 
         memberships = (
             WorkspaceMember.objects.filter(user_id__in=affected_user_ids)
@@ -287,6 +295,7 @@ class WorkspaceMemberService:
     ASSIGNABLE_ROLES = (Role.ADMIN, Role.MEMBER, Role.VIEWER)
 
     @staticmethod
+    @db_transaction.atomic
     def update_role(user, workspace_id: int, member_user_id: int, new_role: str, current_role: str) -> dict:
         """
         Update a member's role in the workspace.
@@ -301,10 +310,14 @@ class WorkspaceMemberService:
                 f'Cannot assign role: {new_role}. Allowed: {", ".join(WorkspaceMemberService.ASSIGNABLE_ROLES)}'
             )
 
-        member = WorkspaceMember.objects.filter(
-            workspace_id=workspace_id,
-            user_id=member_user_id,
-        ).first()
+        member = (
+            WorkspaceMember.objects.select_for_update()
+            .filter(
+                workspace_id=workspace_id,
+                user_id=member_user_id,
+            )
+            .first()
+        )
 
         if not member:
             raise WorkspaceMemberNotFoundError()
@@ -398,7 +411,7 @@ class WorkspaceMemberService:
             raise WorkspaceMemberNotFoundError()
 
         target_user.set_password(new_password)
-        target_user.save()
+        target_user.save(update_fields=['password'])
 
         return {
             'message': 'Password reset successfully',

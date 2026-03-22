@@ -113,8 +113,15 @@ class BudgetPeriodService:
     @staticmethod
     @db_transaction.atomic
     def delete(workspace_id: int, period_id: int) -> None:
-        """Delete a budget period."""
+        """Delete a budget period and all its financial records."""
+        from currency_exchanges.models import CurrencyExchange
+        from planned_transactions.models import PlannedTransaction
+        from transactions.models import Transaction
+
         period = BudgetPeriodService.get(period_id, workspace_id)
+        Transaction.objects.filter(budget_period=period).delete()
+        PlannedTransaction.objects.filter(budget_period=period).delete()
+        CurrencyExchange.objects.filter(budget_period=period).delete()
         period.delete()
 
     @staticmethod

@@ -281,6 +281,60 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
 
         self.assertFalse(CurrencyExchange.objects.filter(id=exchange_id).exists())
 
+    def test_delete_workspace_cascades_category_budget_periodbalance(self):
+        """Test that delete_workspace cascades to Category, Budget, and PeriodBalance."""
+        from datetime import date
+
+        from period_balances.models import PeriodBalance
+
+        user = UserFactory()
+        WorkspaceService.create_workspace(user=user, name='Fallback', create_demo=False)
+        workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
+
+        account = BudgetAccount.objects.filter(workspace=workspace).first()
+        pln = Currency.objects.get(workspace=workspace, symbol='PLN')
+        period = BudgetPeriod.objects.create(
+            budget_account=account,
+            name='Jan',
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 31),
+            created_by=user,
+            updated_by=user,
+        )
+        category = Category.objects.create(
+            budget_period=period,
+            name='Groceries',
+            created_by=user,
+        )
+        budget = Budget.objects.create(
+            budget_period=period,
+            category=category,
+            currency=pln,
+            amount=100,
+            created_by=user,
+            updated_by=user,
+        )
+        period_balance = PeriodBalance.objects.create(
+            budget_period=period,
+            currency=pln,
+            opening_balance=0,
+            total_income=0,
+            total_expenses=0,
+            exchanges_in=0,
+            exchanges_out=0,
+            closing_balance=0,
+        )
+
+        category_id = category.id
+        budget_id = budget.id
+        period_balance_id = period_balance.id
+
+        WorkspaceService.delete_workspace(user=user, workspace_id=workspace.id)
+
+        self.assertFalse(Category.objects.filter(id=category_id).exists())
+        self.assertFalse(Budget.objects.filter(id=budget_id).exists())
+        self.assertFalse(PeriodBalance.objects.filter(id=period_balance_id).exists())
+
 
 class TestCurrencyService(TestCase):
     """Tests for CurrencyService."""
@@ -354,6 +408,31 @@ class TestCurrencyService(TestCase):
 
 class TestWorkspaceMemberService(TestCase):
     """Tests for WorkspaceMemberService."""
+
+    def test_validate_access_returns_workspace_on_success(self):
+        """Test that validate_access returns the workspace when user is a member."""
+        workspace = WorkspaceFactory()
+        user = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=user, role='member')
+
+        result = WorkspaceMemberService.validate_access(workspace.id, user)
+
+        self.assertEqual(result, workspace)
+
+    def test_validate_access_raises_for_nonexistent_workspace(self):
+        """Test that validate_access raises WorkspaceNotFoundError for nonexistent workspace."""
+        user = UserFactory()
+
+        with self.assertRaises(WorkspaceNotFoundError):
+            WorkspaceMemberService.validate_access(99999, user)
+
+    def test_validate_access_raises_when_not_member(self):
+        """Test that validate_access raises WorkspaceNotFoundError when user is not a member."""
+        workspace = WorkspaceFactory()
+        user = UserFactory()
+
+        with self.assertRaises(WorkspaceNotFoundError):
+            WorkspaceMemberService.validate_access(workspace.id, user)
 
     def test_add_member_existing_user(self):
         """Test adding an existing user to workspace."""

@@ -9,7 +9,6 @@ from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
 from core.schemas import UserOut
-from workspaces.models import ROLE_HIERARCHY, Role
 
 User = get_user_model()
 
@@ -90,29 +89,3 @@ def user_to_schema(user: User) -> UserOut:
         is_active=user.is_active,
         created_at=user.created_at.isoformat(),
     )
-
-
-def can_reset_password(admin_role: str, target_role: str, is_same_user: bool) -> bool:
-    """
-    Check if admin can reset password for target user.
-
-    Rules:
-    - Owner can reset: admin, member, viewer (NOT other owners or themselves)
-    - Admin can reset: member, viewer (NOT other admins, owners, or themselves)
-    - Cannot reset own password (use self-service endpoint)
-    """
-    if is_same_user:
-        return False
-
-    if admin_role not in ROLE_HIERARCHY or target_role not in ROLE_HIERARCHY:
-        return False
-
-    # Owner can reset admin, member, viewer
-    if admin_role == Role.OWNER and target_role in (Role.ADMIN, Role.MEMBER, Role.VIEWER):
-        return True
-
-    # Admin can reset member, viewer
-    if admin_role == Role.ADMIN and target_role in (Role.MEMBER, Role.VIEWER):
-        return True
-
-    return False

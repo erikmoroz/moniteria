@@ -57,6 +57,12 @@ class WorkspaceTestCase(APIClientMixin, AuthMixin, TestCase):
             role='admin',
         )
 
+    def create_token_for_user(self, user):
+        """Helper to create JWT token for a user."""
+        from common.auth import create_access_token
+
+        return create_access_token(user)
+
 
 # =============================================================================
 # List Workspaces Tests
@@ -169,12 +175,6 @@ class TestUpdateCurrentWorkspace(WorkspaceTestCase):
         self.put('/api/workspaces/current', payload)
         self.assertStatus(401)
 
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
-
 
 # =============================================================================
 # Switch Workspace Tests
@@ -245,12 +245,6 @@ class TestListWorkspaceMembers(WorkspaceTestCase):
         """Test that listing members without authentication fails."""
         self.get(f'/api/workspaces/{self.workspace.id}/members')
         self.assertStatus(401)
-
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
 
 
 # =============================================================================
@@ -388,12 +382,6 @@ class TestAddMemberToWorkspace(WorkspaceTestCase):
         self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload)
         self.assertStatus(401)
 
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
-
 
 # =============================================================================
 # Update Member Role Tests
@@ -455,12 +443,6 @@ class TestUpdateMemberRole(WorkspaceTestCase):
         payload = {'role': 'viewer'}
         self.put(f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}/role', payload, **headers)
         self.assertStatus(403)
-
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
 
 
 # =============================================================================
@@ -562,12 +544,6 @@ class TestRemoveMemberFromWorkspace(WorkspaceTestCase):
         self.delete(f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}', **headers)
         self.assertStatus(403)
 
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
-
 
 # =============================================================================
 # Leave Workspace Tests
@@ -621,12 +597,6 @@ class TestLeaveWorkspace(WorkspaceTestCase):
         """Test that leaving workspace without authentication fails."""
         self.post(f'/api/workspaces/{self.workspace.id}/members/leave', {})
         self.assertStatus(401)
-
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
 
 
 # =============================================================================
@@ -703,12 +673,6 @@ class TestResetMemberPassword(WorkspaceTestCase):
             f'/api/workspaces/{self.workspace.id}/members/{self.viewer_user.id}/reset-password', payload, **headers
         )
         self.assertStatus(403)
-
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
-
-        return create_access_token(user)
 
 
 # =============================================================================
@@ -897,11 +861,105 @@ class TestLeaveWorkspaceCurrentWorkspace(WorkspaceTestCase):
         self.assertIsNotNone(self.member_user.current_workspace)
         self.assertNotEqual(self.member_user.current_workspace_id, ws_to_leave.id)
 
-    def create_token_for_user(self, user):
-        """Helper to create JWT token for a user."""
-        from common.auth import create_access_token
 
-        return create_access_token(user)
+class TestCurrencyEndpoints(WorkspaceTestCase):
+    """Tests for currency CRUD API endpoints."""
+
+    def test_list_currencies_success(self):
+        """Test listing currencies returns 200 for workspace member."""
+        data = self.get('/api/workspaces/currencies', **self.auth_headers())
+        self.assertStatus(200)
+        self.assertEqual(len(data), 4)
+
+    def test_list_currencies_without_auth_returns_401(self):
+        """Test listing currencies without authentication returns 401."""
+        self.get('/api/workspaces/currencies')
+        self.assertStatus(401)
+
+    def test_create_currency_success(self):
+        """Test creating currency as owner returns 201."""
+        payload = {'symbol': 'GBP', 'name': 'British Pound'}
+        data = self.post('/api/workspaces/currencies', payload, **self.auth_headers())
+        self.assertStatus(201)
+        self.assertEqual(data['symbol'], 'GBP')
+        self.assertEqual(data['name'], 'British Pound')
+
+    def test_create_duplicate_currency_returns_400(self):
+        """Test creating duplicate currency symbol returns 400."""
+        payload = {'symbol': 'PLN', 'name': 'Polish Zloty'}
+        self.post('/api/workspaces/currencies', payload, **self.auth_headers())
+        self.assertStatus(400)
+
+    def test_create_currency_as_member_returns_403(self):
+        """Test that member cannot create currencies."""
+        self.member_user.current_workspace = self.workspace
+        self.member_user.save()
+
+        token = self.create_token_for_user(self.member_user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        payload = {'symbol': 'GBP', 'name': 'British Pound'}
+        self.post('/api/workspaces/currencies', payload, **headers)
+        self.assertStatus(403)
+
+    def test_create_currency_as_viewer_returns_403(self):
+        """Test that viewer cannot create currencies."""
+        self.viewer_user.current_workspace = self.workspace
+        self.viewer_user.save()
+
+        token = self.create_token_for_user(self.viewer_user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        payload = {'symbol': 'GBP', 'name': 'British Pound'}
+        self.post('/api/workspaces/currencies', payload, **headers)
+        self.assertStatus(403)
+
+    def test_delete_currency_success(self):
+        """Test deleting currency as owner returns 204."""
+        from workspaces.models import Currency
+
+        gbp = Currency.objects.create(workspace=self.workspace, symbol='GBP', name='British Pound')
+        self.delete(f'/api/workspaces/currencies/{gbp.id}', **self.auth_headers())
+        self.assertStatus(204)
+
+    def test_delete_currency_wrong_workspace_returns_404(self):
+        """Test deleting currency from other workspace returns 404."""
+        other_ws = WorkspaceFactory(name='Other')
+        from workspaces.models import Currency
+
+        other_currency = Currency.objects.create(workspace=other_ws, symbol='GBP', name='British Pound')
+        self.delete(f'/api/workspaces/currencies/{other_currency.id}', **self.auth_headers())
+        self.assertStatus(404)
+
+    def test_delete_currency_as_member_returns_403(self):
+        """Test that member cannot delete currencies."""
+        from workspaces.models import Currency
+
+        gbp = Currency.objects.create(workspace=self.workspace, symbol='GBP', name='British Pound')
+
+        self.member_user.current_workspace = self.workspace
+        self.member_user.save()
+
+        token = self.create_token_for_user(self.member_user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.delete(f'/api/workspaces/currencies/{gbp.id}', **headers)
+        self.assertStatus(403)
+
+    def test_delete_currency_as_viewer_returns_403(self):
+        """Test that viewer cannot delete currencies."""
+        from workspaces.models import Currency
+
+        gbp = Currency.objects.create(workspace=self.workspace, symbol='GBP', name='British Pound')
+
+        self.viewer_user.current_workspace = self.workspace
+        self.viewer_user.save()
+
+        token = self.create_token_for_user(self.viewer_user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.delete(f'/api/workspaces/currencies/{gbp.id}', **headers)
+        self.assertStatus(403)
 
 
 class TestWorkspaceJWTAuth400(APIClientMixin, TestCase):

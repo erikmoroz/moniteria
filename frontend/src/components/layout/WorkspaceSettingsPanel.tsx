@@ -11,7 +11,7 @@ interface WorkspaceSettingsPanelProps {
 }
 
 export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSettingsPanelProps) {
-  const { workspace, deleteWorkspace, updateWorkspace } = useWorkspace()
+  const { workspace, deleteWorkspace, updateWorkspace, userRole } = useWorkspace()
   const [newName, setNewName] = useState(workspace?.name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -19,8 +19,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
 
   useEffect(() => {
     setNewName(workspace?.name || '')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace?.id])
+  }, [workspace?.id, workspace?.name])
 
   useEffect(() => {
     if (!isOpen) {
@@ -37,8 +36,8 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  const isOwner = workspace?.user_role === 'owner'
-  const canEditName = workspace?.user_role === 'owner' || workspace?.user_role === 'admin'
+  const isOwner = userRole === 'owner'
+  const canEditName = userRole === 'owner' || userRole === 'admin'
   const canDelete = isOwner
 
   const handleSaveName = async () => {
@@ -126,12 +125,12 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                 <label className="block text-sm font-medium text-gray-700 mb-1">Your Role</label>
                 <div className="px-3 py-2 bg-gray-50 rounded-md">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    workspace.user_role === 'owner' ? 'bg-purple-100 text-purple-800' :
-                    workspace.user_role === 'admin' ? 'bg-blue-100 text-blue-800' :
-                    workspace.user_role === 'member' ? 'bg-green-100 text-green-800' :
+                    userRole === 'owner' ? 'bg-purple-100 text-purple-800' :
+                    userRole === 'admin' ? 'bg-blue-100 text-blue-800' :
+                    userRole === 'member' ? 'bg-green-100 text-green-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
-                    {workspace.user_role || 'member'}
+                    {userRole || 'unknown'}
                   </span>
                 </div>
               </div>

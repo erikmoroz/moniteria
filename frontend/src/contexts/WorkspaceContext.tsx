@@ -159,7 +159,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         workspaces,
         currentMembership,
         userRole,
-        isLoading: workspaceLoading || membersLoading || workspacesLoading,
+        isLoading: workspaceLoading || workspacesLoading || (!!workspace?.id && membersLoading),
         error: (filteredWorkspaceError || membersError) as Error | null,
         refetch,
         switchWorkspace,

@@ -57,6 +57,18 @@ def delete_workspace_financial_records(workspace_id: int) -> None:
     Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
     PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
     CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+
+    # Orphaned records (budget_period was deleted before this fix).
+    # Linked to workspace only through their currency FK.
+    Transaction.objects.filter(
+        budget_period__isnull=True,
+        currency__workspace_id=workspace_id,
+    ).delete()
+    PlannedTransaction.objects.filter(
+        budget_period__isnull=True,
+        currency__workspace_id=workspace_id,
+    ).delete()
+
     # CurrencyExchange records can exist without a budget_period (standalone exchanges).
     # These are linked to the workspace only through their from_currency FK.
     CurrencyExchange.objects.filter(
