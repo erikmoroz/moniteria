@@ -1102,8 +1102,16 @@ class TestViewerCannotWrite(APIClientMixin, TestCase):
 
         self.auth_token = create_access_token(self.viewer_user)
 
-        self.account = BudgetAccount.objects.filter(workspace=self.workspace).first()
         self.pln = Currency.objects.get(workspace=self.workspace, symbol='PLN')
+        self.account = BudgetAccount.objects.create(
+            workspace=self.workspace,
+            name='General',
+            default_currency=self.pln,
+            is_active=True,
+            display_order=0,
+            created_by=self.viewer_user,
+            updated_by=self.viewer_user,
+        )
         self.period = BudgetPeriod.objects.create(
             budget_account=self.account,
             name='Jan 2025',

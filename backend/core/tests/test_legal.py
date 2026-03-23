@@ -5,6 +5,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from ninja.errors import HttpError
 
 from common.tests.mixins import APIClientMixin
+from core.factories import LegalDocumentFactory
 from core.legal import _get_legal_context, get_privacy, get_terms, render_from_template
 from core.models import LegalDocument
 
@@ -158,19 +159,15 @@ class LegalDBTests(TestCase):
     """Tests for legal document database reads."""
 
     def setUp(self):
-        # Remove any records seeded at the session level so this class can
-        # insert its own test-specific versions.  The delete runs inside a
-        # SAVEPOINT, so it is rolled back after each test method and the
-        # session records are restored for other test classes.
         LegalDocument.objects.all().delete()
-        LegalDocument.objects.create(
+        LegalDocumentFactory(
             doc_type='terms_of_service',
             version='9.9',
             effective_date='2099-01-01',
             content='Custom terms content',
             is_active=True,
         )
-        LegalDocument.objects.create(
+        LegalDocumentFactory(
             doc_type='privacy_policy',
             version='9.9',
             effective_date='2099-01-01',
@@ -199,14 +196,14 @@ class LegalAPITests(APIClientMixin, TestCase):
 
     def setUp(self):
         LegalDocument.objects.all().delete()
-        LegalDocument.objects.create(
+        LegalDocumentFactory(
             doc_type='terms_of_service',
             version='1.0',
             effective_date='2024-01-01',
             content='Terms content from database',
             is_active=True,
         )
-        LegalDocument.objects.create(
+        LegalDocumentFactory(
             doc_type='privacy_policy',
             version='1.0',
             effective_date='2024-01-01',

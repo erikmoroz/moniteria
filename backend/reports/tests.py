@@ -6,21 +6,15 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from budget_accounts.models import BudgetAccount
-from budget_periods.models import BudgetPeriod
-from budgets.models import Budget
-from categories.models import Category
+from budget_periods.factories import BudgetPeriodFactory
+from budgets.factories import BudgetFactory
+from categories.factories import CategoryFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
+from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
-from transactions.models import Transaction
-from workspaces.models import Currency, Workspace, WorkspaceMember
+from workspaces.models import Currency, WorkspaceMember
 
 User = get_user_model()
-
-
-# =============================================================================
-# Base Test Case
-# =============================================================================
 
 
 class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
@@ -30,8 +24,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
         """Set up authenticated user and create test data."""
         super().setUp()
 
-        # Create budget period
-        self.period = BudgetPeriod.objects.create(
+        self.period = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='January 2025',
             start_date=date(2025, 1, 1),
@@ -40,8 +33,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create another period for testing "current balances"
-        self.period2 = BudgetPeriod.objects.create(
+        self.period2 = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='February 2025',
             start_date=date(2025, 2, 1),
@@ -50,29 +42,28 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create categories
-        self.category1 = Category.objects.create(
+        self.category1 = CategoryFactory(
             budget_period=self.period,
             name='Groceries',
             created_by=self.user,
         )
 
-        self.category2 = Category.objects.create(
+        self.category2 = CategoryFactory(
             budget_period=self.period,
             name='Transport',
             created_by=self.user,
         )
 
-        self.category3 = Category.objects.create(
+        self.category3 = CategoryFactory(
             budget_period=self.period,
             name='Entertainment',
             created_by=self.user,
         )
 
-        self.pln = Currency.objects.get(workspace=self.workspace, symbol='PLN')
-        self.usd = Currency.objects.get(workspace=self.workspace, symbol='USD')
+        self.pln = self.workspace.currencies.filter(symbol='PLN').first()
+        self.usd = self.workspace.currencies.filter(symbol='USD').first()
 
-        Budget.objects.create(
+        BudgetFactory(
             budget_period=self.period,
             category=self.category1,
             currency=self.pln,
@@ -80,7 +71,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        Budget.objects.create(
+        BudgetFactory(
             budget_period=self.period,
             category=self.category2,
             currency=self.pln,
@@ -88,7 +79,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        Budget.objects.create(
+        BudgetFactory(
             budget_period=self.period,
             category=self.category3,
             currency=self.usd,
@@ -96,7 +87,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
             budget_period=self.period,
             currency=self.pln,
             opening_balance=Decimal('5000.00'),
@@ -108,7 +99,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
             budget_period=self.period,
             currency=self.usd,
             opening_balance=Decimal('1000.00'),
@@ -120,7 +111,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
             budget_period=self.period2,
             currency=self.pln,
             opening_balance=Decimal('10000.00'),

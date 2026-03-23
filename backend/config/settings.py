@@ -151,7 +151,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 
 # Workspace limits
-WORKSPACE_MAX_MEMBERS = 15
+WORKSPACE_MAX_MEMBERS = int(os.getenv('WORKSPACE_MAX_MEMBERS', '10'))
 
 # Cache configuration (used for rate limiting)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')

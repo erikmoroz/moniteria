@@ -7,10 +7,12 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from budget_accounts.models import BudgetAccount
-from budget_periods.models import BudgetPeriod
+from budget_periods.factories import BudgetPeriodFactory
+from categories.factories import CategoryFactory
 from categories.models import Category
+from common.tests.factories import BudgetAccountFactory, UserFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
+from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 from workspaces.models import WorkspaceMember
 
 User = get_user_model()
@@ -29,8 +31,7 @@ class CategoriesTestCase(AuthMixin, APIClientMixin, TestCase):
         super().setUp()
         self.currencies = {c.symbol: c for c in self.workspace.currencies.all()}
 
-        # Create an additional budget account for testing
-        self.other_account = BudgetAccount.objects.create(
+        self.other_account = BudgetAccountFactory(
             workspace=self.workspace,
             name='Other Account',
             description='Another budget account',
@@ -40,8 +41,7 @@ class CategoriesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create budget periods
-        self.period1 = BudgetPeriod.objects.create(
+        self.period1 = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='January 2025',
             start_date=date(2025, 1, 1),
@@ -50,7 +50,7 @@ class CategoriesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.period2 = BudgetPeriod.objects.create(
+        self.period2 = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='February 2025',
             start_date=date(2025, 2, 1),
@@ -59,7 +59,7 @@ class CategoriesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.other_period = BudgetPeriod.objects.create(
+        self.other_period = BudgetPeriodFactory(
             budget_account=self.other_account,
             name='March 2025',
             start_date=date(2025, 3, 1),
@@ -68,20 +68,19 @@ class CategoriesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create categories
-        self.category1 = Category.objects.create(
+        self.category1 = CategoryFactory(
             budget_period=self.period1,
             name='Groceries',
             created_by=self.user,
         )
 
-        self.category2 = Category.objects.create(
+        self.category2 = CategoryFactory(
             budget_period=self.period1,
             name='Transport',
             created_by=self.user,
         )
 
-        self.category3 = Category.objects.create(
+        self.category3 = CategoryFactory(
             budget_period=self.period2,
             name='Entertainment',
             created_by=self.user,
@@ -129,33 +128,22 @@ class TestListCategories(CategoriesTestCase):
         We intentionally do not raise 404 to avoid leaking whether the period
         ID exists in another workspace.
         """
-        # Create another workspace with period and category
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),
@@ -163,13 +151,12 @@ class TestListCategories(CategoriesTestCase):
             created_by=other_user,
         )
 
-        Category.objects.create(
+        CategoryFactory(
             budget_period=other_period,
             name='Other Category',
             created_by=other_user,
         )
 
-        # Try to access with current user — should return empty list, not other workspace's categories
         data = self.get(f'/api/categories?budget_period_id={other_period.id}', **self.auth_headers())
         self.assertStatus(200)
         self.assertEqual(data, [])
@@ -202,32 +189,22 @@ class TestGetCategory(CategoriesTestCase):
 
     def test_get_category_from_other_workspace_fails(self):
         """Test that getting a category from another workspace fails."""
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),
@@ -235,7 +212,7 @@ class TestGetCategory(CategoriesTestCase):
             created_by=other_user,
         )
 
-        other_category = Category.objects.create(
+        other_category = CategoryFactory(
             budget_period=other_period,
             name='Other Category',
             created_by=other_user,
@@ -300,32 +277,22 @@ class TestCreateCategory(CategoriesTestCase):
 
     def test_create_category_with_period_from_other_workspace_fails(self):
         """Test that creating a category with a period from another workspace fails."""
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),
@@ -399,32 +366,22 @@ class TestUpdateCategory(CategoriesTestCase):
 
     def test_update_category_from_other_workspace_fails(self):
         """Test that updating a category from another workspace fails."""
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),
@@ -432,7 +389,7 @@ class TestUpdateCategory(CategoriesTestCase):
             created_by=other_user,
         )
 
-        other_category = Category.objects.create(
+        other_category = CategoryFactory(
             budget_period=other_period,
             name='Other Category',
             created_by=other_user,
@@ -480,32 +437,22 @@ class TestDeleteCategory(CategoriesTestCase):
 
     def test_delete_category_from_other_workspace_fails(self):
         """Test that deleting a category from another workspace fails."""
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),
@@ -513,7 +460,7 @@ class TestDeleteCategory(CategoriesTestCase):
             created_by=other_user,
         )
 
-        other_category = Category.objects.create(
+        other_category = CategoryFactory(
             budget_period=other_period,
             name='Other Category',
             created_by=other_user,
@@ -552,7 +499,7 @@ class TestExportCategories(CategoriesTestCase):
 
     def test_export_categories_empty_period(self):
         """Test exporting categories from a period with no categories."""
-        empty_period = BudgetPeriod.objects.create(
+        empty_period = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='Empty Period',
             start_date=date(2025, 5, 1),
@@ -566,32 +513,22 @@ class TestExportCategories(CategoriesTestCase):
 
     def test_export_categories_from_other_workspace_fails(self):
         """Test that exporting categories from another workspace fails."""
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),
@@ -599,7 +536,7 @@ class TestExportCategories(CategoriesTestCase):
             created_by=other_user,
         )
 
-        Category.objects.create(
+        CategoryFactory(
             budget_period=other_period,
             name='Other Category',
             created_by=other_user,
@@ -735,32 +672,22 @@ class TestImportCategories(CategoriesTestCase):
 
     def test_import_categories_from_other_workspace_fails(self):
         """Test that importing categories to another workspace's period fails."""
-        from workspaces.models import Currency, Workspace, WorkspaceMember
-
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
+        other_workspace = WorkspaceFactory(name='Other Workspace')
+        other_user = UserFactory(email='other@example.com', current_workspace=other_workspace)
         other_workspace.owner = other_user
         other_workspace.save()
 
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
+        WorkspaceMemberFactory(workspace=other_workspace, user=other_user, role='owner')
 
-        other_pln = Currency.objects.create(workspace=other_workspace, symbol='PLN', name='Polish Zloty')
-        other_account = BudgetAccount.objects.create(
+        other_pln = other_workspace.currencies.filter(symbol='PLN').first()
+        other_account = BudgetAccountFactory(
             workspace=other_workspace,
             name='Other Account',
             default_currency=other_pln,
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
             name='Other Period',
             start_date=date(2025, 4, 1),

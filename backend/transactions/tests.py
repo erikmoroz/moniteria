@@ -7,20 +7,14 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from budget_accounts.models import BudgetAccount
-from budget_periods.models import BudgetPeriod
-from categories.models import Category
+from budget_periods.factories import BudgetPeriodFactory
+from categories.factories import CategoryFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
-from period_balances.models import PeriodBalance
+from period_balances.factories import PeriodBalanceFactory
 from transactions.models import Transaction
-from workspaces.models import Currency, Workspace, WorkspaceMember
+from workspaces.models import WorkspaceMember
 
 User = get_user_model()
-
-
-# =============================================================================
-# Base Test Case
-# =============================================================================
 
 
 class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
@@ -30,8 +24,7 @@ class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
         """Set up authenticated user and create test data."""
         super().setUp()
 
-        # Create budget period
-        self.period = BudgetPeriod.objects.create(
+        self.period = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='January 2025',
             start_date=date(2025, 1, 1),
@@ -40,8 +33,7 @@ class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create another period
-        self.period2 = BudgetPeriod.objects.create(
+        self.period2 = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             name='February 2025',
             start_date=date(2025, 2, 1),
@@ -50,24 +42,22 @@ class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create categories
-        self.category1 = Category.objects.create(
+        self.category1 = CategoryFactory(
             budget_period=self.period,
             name='Groceries',
             created_by=self.user,
         )
 
-        self.category2 = Category.objects.create(
+        self.category2 = CategoryFactory(
             budget_period=self.period,
             name='Transport',
             created_by=self.user,
         )
 
-        # Create period balances
         self.pln_currency = self.workspace.currencies.filter(symbol='PLN').first()
         self.usd_currency = self.workspace.currencies.filter(symbol='USD').first()
 
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
             budget_period=self.period,
             currency=self.pln_currency,
             opening_balance=Decimal('5000.00'),
@@ -79,7 +69,7 @@ class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
             budget_period=self.period,
             currency=self.usd_currency,
             opening_balance=Decimal('1000.00'),
