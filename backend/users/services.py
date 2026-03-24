@@ -4,6 +4,7 @@ import logging
 
 from django.db import transaction as db_transaction
 
+from common.exceptions import ValidationError
 from core.schemas import UserPreferencesUpdate, UserUpdate
 from users.exceptions import (
     UserConsentNotFoundError,
@@ -475,4 +476,253 @@ class UserService:
             'preferences': preferences,
             'consents': consents,
             'workspaces': workspace_data,
+        }
+
+    @staticmethod
+    @db_transaction.atomic
+    def import_all_data(user, data) -> dict:
+        """
+        Import all personal data from a GDPR export.
+
+        Args:
+            user: The user importing data
+            data: FullImportIn schema with export data and options
+
+        Returns:
+            ImportResultOut with statistics and any skipped/renamed items
+
+        Raises:
+            ValidationError: If export version is incompatible
+        """
+        from datetime import datetime
+
+        from budget_accounts.models import BudgetAccount
+        from budget_periods.models import BudgetPeriod
+        from budgets.models import Budget
+        from categories.models import Category
+        from currency_exchanges.models import CurrencyExchange
+        from period_balances.models import PeriodBalance
+        from planned_transactions.models import PlannedTransaction
+        from transactions.models import Transaction
+        from workspaces.models import Currency, Role, Workspace, WorkspaceMember
+
+        export_data = data.data
+        workspace_filter = data.workspaces
+        conflict_strategy = data.conflict_strategy
+
+        export_version = export_data.get('export_version', '1.0')
+        if not export_version.startswith('2.'):
+            raise ValidationError(f'Incompatible export version: {export_version}. Only version 2.x is supported.')
+
+        imported_workspaces = 0
+        imported_budget_accounts = 0
+        imported_budget_periods = 0
+        imported_categories = 0
+        imported_transactions = 0
+        imported_budgets = 0
+        imported_planned_transactions = 0
+        imported_currency_exchanges = 0
+        skipped: dict[str, list[str]] = {'workspaces': [], 'currencies': [], 'errors': []}
+        renamed: dict[str, str] = {}
+
+        workspaces_data = export_data.get('workspaces', [])
+
+        for ws_data in workspaces_data:
+            original_name = ws_data.get('workspace_name')
+            if workspace_filter and original_name not in workspace_filter:
+                continue
+
+            existing = Workspace.objects.filter(name=original_name).first()
+
+            if existing:
+                if conflict_strategy == 'skip':
+                    skipped['workspaces'].append(original_name)
+                    continue
+                elif conflict_strategy == 'rename':
+                    new_name = f'{original_name} (imported {datetime.now().strftime("%Y-%m-%d %H:%M")})'
+                    renamed[original_name] = new_name
+                    original_name = new_name
+                elif conflict_strategy == 'merge':
+                    pass
+
+            workspace = Workspace.objects.create(name=original_name, owner=user)
+            WorkspaceMember.objects.create(workspace=workspace, user=user, role=Role.OWNER)
+            imported_workspaces += 1
+
+            currency_map: dict[str, Currency] = {}
+            for curr_data in ws_data.get('currencies', []):
+                symbol = curr_data.get('symbol')
+                if Currency.objects.filter(workspace=workspace, symbol=symbol).exists():
+                    skipped['currencies'].append(f'{original_name}/{symbol}')
+                    currency_map[symbol] = Currency.objects.get(workspace=workspace, symbol=symbol)
+                else:
+                    currency_map[symbol] = Currency.objects.create(
+                        workspace=workspace,
+                        name=curr_data.get('name', symbol),
+                        symbol=symbol,
+                        created_by=user,
+                        updated_by=user,
+                    )
+
+            for acc_data in ws_data.get('budget_accounts', []):
+                default_currency_symbol = acc_data.get('default_currency')
+                default_currency = currency_map.get(default_currency_symbol)
+                if not default_currency:
+                    skipped['errors'].append(
+                        f'Account {acc_data.get("name")}: currency {default_currency_symbol} not found'
+                    )
+                    continue
+
+                account = BudgetAccount.objects.create(
+                    workspace=workspace,
+                    name=acc_data.get('name'),
+                    description=acc_data.get('description'),
+                    default_currency=default_currency,
+                    is_active=acc_data.get('is_active', True),
+                    created_by=user,
+                    updated_by=user,
+                )
+                imported_budget_accounts += 1
+
+                for period_data in acc_data.get('periods', []):
+                    period = BudgetPeriod.objects.create(
+                        workspace=workspace,
+                        budget_account=account,
+                        name=period_data.get('name'),
+                        start_date=datetime.strptime(period_data.get('start_date'), '%Y-%m-%d').date(),
+                        end_date=datetime.strptime(period_data.get('end_date'), '%Y-%m-%d').date(),
+                        created_by=user,
+                        updated_by=user,
+                    )
+                    imported_budget_periods += 1
+
+                    category_map: dict[str, Category] = {}
+                    for cat_data in period_data.get('categories', []):
+                        cat_name = cat_data.get('name')
+                        category = Category.objects.create(
+                            workspace=workspace,
+                            budget_period=period,
+                            name=cat_name,
+                            created_by=user,
+                            updated_by=user,
+                        )
+                        category_map[cat_name] = category
+                        imported_categories += 1
+
+                    for budget_data in period_data.get('budgets', []):
+                        cat_name = budget_data.get('category_name')
+                        currency_symbol = budget_data.get('currency_symbol')
+                        category = category_map.get(cat_name)
+                        currency = currency_map.get(currency_symbol)
+                        if category and currency:
+                            Budget.objects.create(
+                                workspace=workspace,
+                                budget_period=period,
+                                category=category,
+                                currency=currency,
+                                amount=budget_data.get('amount'),
+                                created_by=user,
+                                updated_by=user,
+                            )
+                            imported_budgets += 1
+
+                    for tx_data in period_data.get('transactions', []):
+                        cat_name = tx_data.get('category_name')
+                        currency_symbol = tx_data.get('currency_symbol')
+                        category = category_map.get(cat_name) if cat_name else None
+                        currency = currency_map.get(currency_symbol)
+                        if currency:
+                            Transaction.objects.create(
+                                workspace=workspace,
+                                budget_period=period,
+                                date=datetime.strptime(tx_data.get('date'), '%Y-%m-%d').date(),
+                                description=tx_data.get('description'),
+                                amount=tx_data.get('amount'),
+                                type=tx_data.get('type'),
+                                category=category,
+                                currency=currency,
+                                created_by=user,
+                                updated_by=user,
+                            )
+                            imported_transactions += 1
+
+                    for pt_data in period_data.get('planned_transactions', []):
+                        currency_symbol = pt_data.get('currency_symbol')
+                        currency = currency_map.get(currency_symbol)
+                        if currency:
+                            planned_date_str = pt_data.get('planned_date')
+                            payment_date_str = pt_data.get('payment_date')
+                            PlannedTransaction.objects.create(
+                                workspace=workspace,
+                                budget_period=period,
+                                name=pt_data.get('name'),
+                                amount=pt_data.get('amount'),
+                                planned_date=datetime.strptime(planned_date_str, '%Y-%m-%d').date()
+                                if planned_date_str
+                                else None,
+                                payment_date=datetime.strptime(payment_date_str, '%Y-%m-%d').date()
+                                if payment_date_str
+                                else None,
+                                status=pt_data.get('status', 'pending'),
+                                currency=currency,
+                                created_by=user,
+                                updated_by=user,
+                            )
+                            imported_planned_transactions += 1
+
+                    for ce_data in period_data.get('currency_exchanges', []):
+                        from_currency_symbol = ce_data.get('from_currency_symbol')
+                        to_currency_symbol = ce_data.get('to_currency_symbol')
+                        from_currency = currency_map.get(from_currency_symbol)
+                        to_currency = currency_map.get(to_currency_symbol)
+                        if from_currency and to_currency:
+                            date_str = ce_data.get('date')
+                            CurrencyExchange.objects.create(
+                                workspace=workspace,
+                                budget_period=period,
+                                date=datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else None,
+                                description=ce_data.get('description'),
+                                from_currency=from_currency,
+                                from_amount=ce_data.get('from_amount'),
+                                to_currency=to_currency,
+                                to_amount=ce_data.get('to_amount'),
+                                exchange_rate=ce_data.get('exchange_rate'),
+                                created_by=user,
+                                updated_by=user,
+                            )
+                            imported_currency_exchanges += 1
+
+                    for pb_data in period_data.get('period_balances', []):
+                        currency_symbol = pb_data.get('currency_symbol')
+                        currency = currency_map.get(currency_symbol)
+                        if currency:
+                            PeriodBalance.objects.create(
+                                workspace=workspace,
+                                budget_period=period,
+                                currency=currency,
+                                opening_balance=pb_data.get('opening_balance', 0),
+                                total_income=pb_data.get('total_income', 0),
+                                total_expenses=pb_data.get('total_expenses', 0),
+                                exchanges_in=pb_data.get('exchanges_in', 0),
+                                exchanges_out=pb_data.get('exchanges_out', 0),
+                                closing_balance=pb_data.get('closing_balance', 0),
+                                created_by=user,
+                                updated_by=user,
+                            )
+
+        if imported_workspaces > 0:
+            user.current_workspace = Workspace.objects.filter(owner=user).order_by('-id').first()
+            user.save(update_fields=['current_workspace'])
+
+        return {
+            'imported_workspaces': imported_workspaces,
+            'imported_budget_accounts': imported_budget_accounts,
+            'imported_budget_periods': imported_budget_periods,
+            'imported_categories': imported_categories,
+            'imported_transactions': imported_transactions,
+            'imported_budgets': imported_budgets,
+            'imported_planned_transactions': imported_planned_transactions,
+            'imported_currency_exchanges': imported_currency_exchanges,
+            'skipped': skipped,
+            'renamed': renamed,
         }
