@@ -354,16 +354,18 @@ class UserService:
         for membership in memberships:
             ws = membership.workspace
             ws_entry = {
+                'workspace_id': ws.id,
                 'workspace_name': ws.name,
                 'role': membership.role,
                 'joined_at': membership.created_at.isoformat(),
                 'budget_accounts': [],
-                'currencies': list(Currency.objects.filter(workspace_id=ws.id).values('symbol', 'name')),
+                'currencies': list(Currency.objects.filter(workspace_id=ws.id).values('id', 'symbol', 'name')),
             }
 
             accounts = BudgetAccount.objects.filter(workspace=ws).select_related('default_currency')
             for account in accounts:
                 account_entry = {
+                    'budget_account_id': account.id,
                     'name': account.name,
                     'description': account.description,
                     'default_currency': account.default_currency.symbol if account.default_currency else None,
@@ -374,27 +376,58 @@ class UserService:
                 periods = BudgetPeriod.objects.filter(budget_account=account)
                 for period in periods:
                     period_entry = {
+                        'budget_period_id': period.id,
                         'name': period.name,
                         'start_date': period.start_date.isoformat(),
                         'end_date': period.end_date.isoformat(),
-                        'categories': list(Category.objects.filter(budget_period=period).values('name')),
-                        'budgets': list(
-                            Budget.objects.filter(budget_period=period)
+                        'categories': list(Category.objects.filter(budget_period=period).values('id', 'name')),
+                        'budgets': [
+                            {
+                                'category_name': b['category__name'],
+                                'amount': b['amount'],
+                                'currency_symbol': b['currency__symbol'],
+                            }
+                            for b in Budget.objects.filter(budget_period=period)
                             .select_related('category', 'currency')
                             .values('category__name', 'amount', 'currency__symbol')
-                        ),
-                        'transactions': list(
-                            Transaction.objects.filter(budget_period=period)
+                        ],
+                        'transactions': [
+                            {
+                                'date': t['date'].isoformat() if t['date'] else None,
+                                'description': t['description'],
+                                'amount': t['amount'],
+                                'type': t['type'],
+                                'category_name': t['category__name'],
+                                'currency_symbol': t['currency__symbol'],
+                            }
+                            for t in Transaction.objects.filter(budget_period=period)
                             .select_related('category', 'currency')
                             .values('date', 'description', 'amount', 'type', 'category__name', 'currency__symbol')
-                        ),
-                        'planned_transactions': list(
-                            PlannedTransaction.objects.filter(budget_period=period)
+                        ],
+                        'planned_transactions': [
+                            {
+                                'name': pt['name'],
+                                'amount': pt['amount'],
+                                'planned_date': pt['planned_date'].isoformat() if pt['planned_date'] else None,
+                                'payment_date': pt['payment_date'].isoformat() if pt['payment_date'] else None,
+                                'status': pt['status'],
+                                'currency_symbol': pt['currency__symbol'],
+                            }
+                            for pt in PlannedTransaction.objects.filter(budget_period=period)
                             .select_related('currency')
                             .values('name', 'amount', 'planned_date', 'payment_date', 'status', 'currency__symbol')
-                        ),
-                        'currency_exchanges': list(
-                            CurrencyExchange.objects.filter(budget_period=period)
+                        ],
+                        'currency_exchanges': [
+                            {
+                                'date': ce['date'].isoformat() if ce['date'] else None,
+                                'description': ce['description'],
+                                'from_amount': ce['from_amount'],
+                                'to_amount': ce['to_amount'],
+                                'exchange_rate': ce['exchange_rate'],
+                                'from_currency_symbol': ce['from_currency__symbol'],
+                                'to_currency_symbol': ce['to_currency__symbol'],
+                            }
+                            for ce in CurrencyExchange.objects.filter(budget_period=period)
                             .select_related('from_currency', 'to_currency')
                             .values(
                                 'date',
@@ -405,9 +438,18 @@ class UserService:
                                 'from_currency__symbol',
                                 'to_currency__symbol',
                             )
-                        ),
-                        'period_balances': list(
-                            PeriodBalance.objects.filter(budget_period=period)
+                        ],
+                        'period_balances': [
+                            {
+                                'currency_symbol': pb['currency__symbol'],
+                                'opening_balance': pb['opening_balance'],
+                                'total_income': pb['total_income'],
+                                'total_expenses': pb['total_expenses'],
+                                'exchanges_in': pb['exchanges_in'],
+                                'exchanges_out': pb['exchanges_out'],
+                                'closing_balance': pb['closing_balance'],
+                            }
+                            for pb in PeriodBalance.objects.filter(budget_period=period)
                             .select_related('currency')
                             .values(
                                 'currency__symbol',
@@ -418,55 +460,16 @@ class UserService:
                                 'exchanges_out',
                                 'closing_balance',
                             )
-                        ),
+                        ],
                     }
                     account_entry['periods'].append(period_entry)
 
                 ws_entry['budget_accounts'].append(account_entry)
 
-            orphaned_transactions = list(
-                Transaction.objects.filter(
-                    budget_period__isnull=True,
-                    currency__workspace_id=ws.id,
-                )
-                .select_related('category', 'currency')
-                .values('date', 'description', 'amount', 'type', 'category__name', 'currency__symbol')
-            )
-            orphaned_planned = list(
-                PlannedTransaction.objects.filter(
-                    budget_period__isnull=True,
-                    currency__workspace_id=ws.id,
-                )
-                .select_related('currency')
-                .values('name', 'amount', 'planned_date', 'payment_date', 'status', 'currency__symbol')
-            )
-            orphaned_exchanges = list(
-                CurrencyExchange.objects.filter(
-                    budget_period__isnull=True,
-                    from_currency__workspace_id=ws.id,
-                )
-                .select_related('from_currency', 'to_currency')
-                .values(
-                    'date',
-                    'description',
-                    'from_amount',
-                    'to_amount',
-                    'exchange_rate',
-                    'from_currency__symbol',
-                    'to_currency__symbol',
-                )
-            )
-            if orphaned_transactions or orphaned_planned or orphaned_exchanges:
-                ws_entry['orphaned_records'] = {
-                    'transactions': orphaned_transactions,
-                    'planned_transactions': orphaned_planned,
-                    'currency_exchanges': orphaned_exchanges,
-                }
-
             workspace_data.append(ws_entry)
 
         return {
-            'export_version': '1.0',
+            'export_version': '2.0',
             'exported_at': timezone.now().isoformat(),
             'profile': profile,
             'preferences': preferences,
