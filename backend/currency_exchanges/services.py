@@ -59,12 +59,7 @@ class CurrencyExchangeService:
 
     @staticmethod
     def list(workspace_id: int, budget_period_id: int | None = None) -> list[CurrencyExchange]:
-        """List currency exchanges for a workspace, optionally filtered by period.
-
-        NOTE: Standalone exchanges (budget_period=NULL) are NOT included because
-        for_workspace() filters via budget_period__budget_account__workspace_id.
-        See CurrencyExchange.WORKSPACE_FILTER for details.
-        """
+        """List currency exchanges for a workspace, optionally filtered by period."""
         queryset = CurrencyExchange.objects.select_related('from_currency', 'to_currency').for_workspace(workspace_id)
         if budget_period_id:
             queryset = queryset.filter(budget_period_id=budget_period_id)
