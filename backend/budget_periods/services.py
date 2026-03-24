@@ -58,6 +58,7 @@ class BudgetPeriodService:
 
         period = BudgetPeriod.objects.create(
             budget_account_id=data.budget_account_id,
+            workspace_id=workspace_id,
             name=data.name,
             start_date=data.start_date,
             end_date=data.end_date,
@@ -138,6 +139,7 @@ class BudgetPeriodService:
 
         new_period = BudgetPeriod.objects.create(
             budget_account_id=source_period.budget_account_id,
+            workspace_id=workspace_id,
             name=data.name,
             start_date=data.start_date,
             end_date=data.end_date,

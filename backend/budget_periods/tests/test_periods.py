@@ -51,6 +51,7 @@ class TestListPeriods(BudgetPeriodsTestCase):
         # Create periods in the user's workspace
         BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Period 1',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -59,6 +60,7 @@ class TestListPeriods(BudgetPeriodsTestCase):
         )
         BudgetPeriod.objects.create(
             budget_account=self.secondary_account,
+            workspace=self.workspace,
             name='Period 2',
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
@@ -73,6 +75,7 @@ class TestListPeriods(BudgetPeriodsTestCase):
         """Test periods are ordered by start_date descending."""
         BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='January',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -80,6 +83,7 @@ class TestListPeriods(BudgetPeriodsTestCase):
         )
         BudgetPeriod.objects.create(
             budget_account=self.secondary_account,
+            workspace=self.workspace,
             name='February',
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
@@ -87,6 +91,7 @@ class TestListPeriods(BudgetPeriodsTestCase):
         )
         BudgetPeriod.objects.create(
             budget_account=self.secondary_account,
+            workspace=self.workspace,
             name='March',
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
@@ -116,6 +121,7 @@ class TestGetCurrentPeriod(BudgetPeriodsTestCase):
         """Test getting current period when it exists."""
         BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='January 2025',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -130,6 +136,7 @@ class TestGetCurrentPeriod(BudgetPeriodsTestCase):
         """Test getting period on start date boundary."""
         BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='January 2025',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -162,6 +169,7 @@ class TestGetPeriod(BudgetPeriodsTestCase):
         """Test getting a period by ID."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -181,6 +189,7 @@ class TestGetPeriod(BudgetPeriodsTestCase):
         """Test getting a period requires authentication."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -326,6 +335,7 @@ class TestUpdatePeriod(BudgetPeriodsTestCase):
         """Test updating period name."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Old Name',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -346,6 +356,7 @@ class TestUpdatePeriod(BudgetPeriodsTestCase):
         """Test updating period dates."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -368,6 +379,7 @@ class TestUpdatePeriod(BudgetPeriodsTestCase):
         """Test updating period to different budget account."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -388,6 +400,7 @@ class TestUpdatePeriod(BudgetPeriodsTestCase):
         """Test updating period with non-existent budget account."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -418,6 +431,7 @@ class TestUpdatePeriod(BudgetPeriodsTestCase):
         """Test updating period requires authentication."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -430,6 +444,7 @@ class TestUpdatePeriod(BudgetPeriodsTestCase):
         """Test that a viewer cannot update a period."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -452,6 +467,7 @@ class TestDeletePeriod(BudgetPeriodsTestCase):
         """Test successful period deletion."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -473,6 +489,7 @@ class TestDeletePeriod(BudgetPeriodsTestCase):
         """Test deleting period requires authentication."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -485,6 +502,7 @@ class TestDeletePeriod(BudgetPeriodsTestCase):
         """Test that a viewer cannot delete a period."""
         period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='Test Period',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -509,6 +527,7 @@ class TestCopyPeriod(BudgetPeriodsTestCase):
         # Create source period with categories, budgets, and planned transactions
         self.source_period = BudgetPeriod.objects.create(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='January 2025',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
