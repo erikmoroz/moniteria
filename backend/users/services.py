@@ -21,7 +21,7 @@ class UserService:
     def get_or_create_preferences(user: User) -> UserPreferences:
         """Get or create user preferences."""
         preferences, _ = UserPreferences.objects.get_or_create(
-            user=user, defaults={'calendar_start_day': WeekdayChoices.SUNDAY, 'font_family': FontChoices.GEIST}
+            user=user, defaults={'calendar_start_day': WeekdayChoices.MONDAY, 'font_family': FontChoices.GEIST}
         )
         if not preferences.font_family:
             preferences.font_family = FontChoices.GEIST
