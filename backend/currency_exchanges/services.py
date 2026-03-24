@@ -86,6 +86,7 @@ class CurrencyExchangeService:
         exchange_rate = data.to_amount / data.from_amount
 
         exchange = CurrencyExchange.objects.create(
+            workspace_id=workspace_id,
             date=data.date,
             description=data.description,
             from_currency=from_currency,
@@ -225,6 +226,7 @@ class CurrencyExchangeService:
             exchange_rate = import_item.to_amount / import_item.from_amount
             new_exchanges.append(
                 CurrencyExchange(
+                    workspace_id=workspace_id,
                     date=import_item.date,
                     description=import_item.description,
                     from_currency=from_currency,

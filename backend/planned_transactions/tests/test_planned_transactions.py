@@ -10,7 +10,9 @@ from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
 from categories.factories import CategoryFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
+from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
+from planned_transactions.factories import PlannedTransactionFactory
 from planned_transactions.models import PlannedTransaction
 from transactions.models import Transaction
 from workspaces.models import Workspace, WorkspaceMember
@@ -72,7 +74,8 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
         )
 
         # Create period balances for testing
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             currency=self.currencies['USD'],
             opening_balance=Decimal('1000.00'),
@@ -82,7 +85,8 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
             exchanges_out=0,
             closing_balance=Decimal('1000.00'),
         )
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             currency=self.currencies['EUR'],
             opening_balance=Decimal('500.00'),
@@ -94,7 +98,8 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
         )
 
         # Create some test planned transactions
-        self.planned1 = PlannedTransaction.objects.create(
+        self.planned1 = PlannedTransactionFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             name='Monthly Rent',
             amount=Decimal('1200.00'),
@@ -106,7 +111,8 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
             updated_by=self.user,
         )
 
-        self.planned2 = PlannedTransaction.objects.create(
+        self.planned2 = PlannedTransactionFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             name='Grocery Shopping',
             amount=Decimal('150.00'),
@@ -118,7 +124,8 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
             updated_by=self.user,
         )
 
-        self.planned3 = PlannedTransaction.objects.create(
+        self.planned3 = PlannedTransactionFactory(
+            workspace=self.workspace,
             budget_period=self.period2,
             name='February Rent',
             amount=Decimal('1200.00'),

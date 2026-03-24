@@ -168,6 +168,7 @@ def create_demo_fixtures(
 
     for trans_date, description, cat_name, amount, currency_symbol, trans_type in transactions_data:
         Transaction.objects.create(
+            workspace_id=workspace_id,
             budget_period=budget_period,
             date=trans_date,
             description=description,
@@ -203,6 +204,7 @@ def create_demo_fixtures(
 
     for name, amount, currency_symbol, cat_name, planned_date, payment_date, status in planned_data:
         PlannedTransaction.objects.create(
+            workspace_id=workspace_id,
             budget_period=budget_period,
             name=name,
             amount=amount,
@@ -238,6 +240,7 @@ def create_demo_fixtures(
 
     for ex_date, description, from_curr, from_amt, to_curr, to_amt, rate in exchanges_data:
         CurrencyExchange.objects.create(
+            workspace_id=workspace_id,
             budget_period=budget_period,
             date=ex_date,
             description=description,
@@ -283,6 +286,7 @@ def create_demo_fixtures(
 
     for currency_symbol, opening, income, expenses, ex_in, ex_out, closing in balances_data:
         PeriodBalance.objects.create(
+            workspace_id=workspace_id,
             budget_period=budget_period,
             currency=currency_map[currency_symbol],
             opening_balance=opening,

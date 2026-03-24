@@ -9,9 +9,10 @@ from django.test import TestCase
 from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
-from currency_exchanges.models import CurrencyExchange
+from currency_exchanges.factories import CurrencyExchangeFactory
+from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
-from transactions.models import Transaction
+from transactions.factories import TransactionFactory
 from workspaces.models import Workspace, WorkspaceMember
 
 User = get_user_model()
@@ -68,7 +69,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
         )
 
         # Create period balances
-        self.balance1_pln = PeriodBalance.objects.create(
+        self.balance1_pln = PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             currency=self.currencies['PLN'],
             opening_balance=Decimal('1000.00'),
@@ -80,7 +82,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.balance1_usd = PeriodBalance.objects.create(
+        self.balance1_usd = PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             currency=self.currencies['USD'],
             opening_balance=Decimal('500.00'),
@@ -92,7 +95,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.balance2_pln = PeriodBalance.objects.create(
+        self.balance2_pln = PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period2,
             currency=self.currencies['PLN'],
             opening_balance=Decimal('3050.00'),
@@ -104,7 +108,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.other_balance = PeriodBalance.objects.create(
+        self.other_balance = PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.other_period,
             currency=self.currencies['EUR'],
             opening_balance=Decimal('0'),
@@ -219,7 +224,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=other_user,
         )
 
-        other_balance = PeriodBalance.objects.create(
+        other_balance = PeriodBalanceFactory(
+            workspace=other_workspace,
             budget_period=other_period,
             currency=other_pln_currency,
             opening_balance=Decimal('500.00'),
@@ -321,7 +327,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
     def test_recalculate_balance_with_transactions(self):
         """Test recalculation includes transaction totals."""
         # Create transactions for period1
-        Transaction.objects.create(
+        TransactionFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 15),
             description='Salary',
@@ -331,7 +338,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        Transaction.objects.create(
+        TransactionFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 20),
             description='Rent',
@@ -355,7 +363,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
     def test_recalculate_balance_with_exchanges(self):
         """Test recalculation includes currency exchange totals."""
         # Create currency exchanges for period1
-        CurrencyExchange.objects.create(
+        CurrencyExchangeFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 10),
             description='Buy EUR',
@@ -366,7 +375,8 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        CurrencyExchange.objects.create(
+        CurrencyExchangeFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 15),
             description='Buy PLN',

@@ -11,7 +11,7 @@ from budgets.factories import BudgetFactory
 from categories.factories import CategoryFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.models import PeriodBalance
-from planned_transactions.models import PlannedTransaction
+from planned_transactions.factories import PlannedTransactionFactory
 from workspaces.models import WorkspaceMember
 
 
@@ -567,8 +567,9 @@ class TestCopyPeriod(BudgetPeriodsTestCase):
         )
 
         # Create planned transactions
-        PlannedTransaction.objects.create(
+        PlannedTransactionFactory(
             budget_period=self.source_period,
+            workspace=self.workspace,
             name='Monthly Rent',
             amount=2000,
             currency=self.currencies['PLN'],
@@ -576,8 +577,9 @@ class TestCopyPeriod(BudgetPeriodsTestCase):
             planned_date=date(2025, 1, 5),
             status='pending',
         )
-        PlannedTransaction.objects.create(
+        PlannedTransactionFactory(
             budget_period=self.source_period,
+            workspace=self.workspace,
             name='Weekly Groceries',
             amount=400,
             currency=self.currencies['PLN'],

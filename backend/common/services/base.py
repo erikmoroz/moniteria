@@ -14,10 +14,16 @@ def resolve_currency(workspace_id: int, symbol: str):
 
 def get_or_create_period_balance(period_id: int, currency, user=None) -> PeriodBalance:
     """Get or create a period balance for a given period and currency FK."""
+    from budget_periods.models import BudgetPeriod
+
+    period = BudgetPeriod.objects.select_related('budget_account').get(id=period_id)
+    workspace_id = period.budget_account.workspace_id
+
     balance, _ = PeriodBalance.objects.get_or_create(
         budget_period_id=period_id,
         currency=currency,
         defaults={
+            'workspace_id': workspace_id,
             'opening_balance': Decimal('0'),
             'total_income': Decimal('0'),
             'total_expenses': Decimal('0'),

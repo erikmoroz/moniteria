@@ -72,6 +72,7 @@ class BudgetPeriodService:
             [
                 PeriodBalance(
                     budget_period=period,
+                    workspace_id=workspace_id,
                     currency=currency,
                     opening_balance=0,
                     total_income=0,
@@ -153,6 +154,7 @@ class BudgetPeriodService:
             [
                 PeriodBalance(
                     budget_period=new_period,
+                    workspace_id=workspace_id,
                     currency=currency,
                     opening_balance=0,
                     total_income=0,
@@ -185,7 +187,6 @@ class BudgetPeriodService:
                     category_id=category_mapping[source_budget.category_id].id,
                     currency=source_budget.currency,
                     amount=source_budget.amount,
-                    created_by=user,
                 )
                 for source_budget in source_period.budgets.all()
                 if source_budget.category_id in category_mapping
@@ -203,6 +204,7 @@ class BudgetPeriodService:
             planned_to_create.append(
                 PlannedTransaction(
                     budget_period=new_period,
+                    workspace_id=workspace_id,
                     name=source_planned.name,
                     amount=source_planned.amount,
                     currency=source_planned.currency,

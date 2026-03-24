@@ -9,7 +9,9 @@ from django.test import TestCase
 from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
+from currency_exchanges.factories import CurrencyExchangeFactory
 from currency_exchanges.models import CurrencyExchange
+from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
 from workspaces.models import Workspace, WorkspaceMember
 
@@ -55,7 +57,8 @@ class CurrencyExchangeTestCase(APIClientMixin, AuthMixin, TestCase):
         )
 
         # Create period balances for testing
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             currency=self.currencies['USD'],
             opening_balance=Decimal('1000.00'),
@@ -65,7 +68,8 @@ class CurrencyExchangeTestCase(APIClientMixin, AuthMixin, TestCase):
             exchanges_out=0,
             closing_balance=Decimal('1000.00'),
         )
-        PeriodBalance.objects.create(
+        PeriodBalanceFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             currency=self.currencies['EUR'],
             opening_balance=Decimal('500.00'),
@@ -77,7 +81,8 @@ class CurrencyExchangeTestCase(APIClientMixin, AuthMixin, TestCase):
         )
 
         # Create some test currency exchanges
-        self.exchange1 = CurrencyExchange.objects.create(
+        self.exchange1 = CurrencyExchangeFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 15),
             description='USD to EUR exchange',
@@ -90,7 +95,8 @@ class CurrencyExchangeTestCase(APIClientMixin, AuthMixin, TestCase):
             updated_by=self.user,
         )
 
-        self.exchange2 = CurrencyExchange.objects.create(
+        self.exchange2 = CurrencyExchangeFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 20),
             description='EUR to USD exchange',
@@ -103,7 +109,8 @@ class CurrencyExchangeTestCase(APIClientMixin, AuthMixin, TestCase):
             updated_by=self.user,
         )
 
-        self.exchange3 = CurrencyExchange.objects.create(
+        self.exchange3 = CurrencyExchangeFactory(
+            workspace=self.workspace,
             budget_period=self.period2,
             date=date(2025, 2, 10),
             description='USD to PLN exchange',
@@ -144,7 +151,8 @@ class TestListCurrencyExchanges(CurrencyExchangeTestCase):
     def test_list_ordered_by_date_desc(self):
         """Test that exchanges are ordered by date descending."""
         # Create another exchange with earlier date
-        CurrencyExchange.objects.create(
+        CurrencyExchangeFactory(
+            workspace=self.workspace,
             budget_period=self.period1,
             date=date(2025, 1, 5),
             from_currency=self.currencies['USD'],
