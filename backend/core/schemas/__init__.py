@@ -16,10 +16,19 @@ Schemas are organized by domain in separate modules:
 
 from core.schemas.auth import (
     LoginIn,
+    LoginOut,
     RefreshToken,
     RegisterIn,
     Token,
+    TwoFADisableIn,
+    TwoFARegenerateIn,
+    TwoFARegenerateOut,
+    TwoFASetupOut,
+    TwoFAStatusOut,
+    TwoFAVerifySetupIn,
+    TwoFAVerifySetupOut,
     UserPasswordUpdate,
+    Verify2FAIn,
 )
 
 # =============================================================================
@@ -67,8 +76,17 @@ __all__ = [
     'Token',
     'RefreshToken',
     'LoginIn',
+    'LoginOut',
     'RegisterIn',
     'UserPasswordUpdate',
+    'Verify2FAIn',
+    'TwoFAStatusOut',
+    'TwoFASetupOut',
+    'TwoFAVerifySetupIn',
+    'TwoFAVerifySetupOut',
+    'TwoFADisableIn',
+    'TwoFARegenerateIn',
+    'TwoFARegenerateOut',
     # Users
     'UserBase',
     'UserOut',
