@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
 
 from budget_accounts.models import BudgetAccount
+from common.email import EmailService
 from common.exceptions import ValidationError
 from workspaces.demo_fixtures import create_demo_fixtures
 from workspaces.exceptions import (
@@ -206,7 +207,7 @@ class WorkspaceMemberService:
 
         Raises domain exceptions on error.
         """
-        Workspace.objects.select_for_update().get(id=workspace_id)
+        workspace = Workspace.objects.select_for_update().get(id=workspace_id)
 
         current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
         if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
@@ -233,6 +234,13 @@ class WorkspaceMemberService:
                 existing_user.current_workspace_id = workspace_id
                 existing_user.save(update_fields=['current_workspace'])
 
+            admin_name = user.full_name or user.email
+            db_transaction.on_commit(
+                lambda: WorkspaceMemberService._send_existing_user_email(
+                    existing_user, workspace, admin_name, data.role
+                )
+            )
+
             return {
                 'message': f'Existing user {data.email} added to workspace',
                 'user_id': existing_user.id,
@@ -255,6 +263,11 @@ class WorkspaceMemberService:
                 workspace_id=workspace_id,
                 user_id=new_user.id,
                 role=data.role,
+            )
+
+            admin_name = user.full_name or user.email
+            db_transaction.on_commit(
+                lambda: WorkspaceMemberService._send_new_user_email(new_user, workspace, admin_name, data.role)
             )
 
             return {
@@ -428,3 +441,32 @@ class WorkspaceMemberService:
             'user_id': target_user_id,
             'email': target_user_email,
         }
+
+    @staticmethod
+    def _send_existing_user_email(existing_user, workspace, admin_name, role):
+        EmailService.send_email(
+            to=existing_user.email,
+            subject=f'You were added to {workspace.name} — Monie',
+            template_name='email/workspace_invitation_existing',
+            context={
+                'user_name': existing_user.full_name or existing_user.email,
+                'workspace_name': workspace.name,
+                'admin_name': admin_name,
+                'role': role,
+            },
+        )
+
+    @staticmethod
+    def _send_new_user_email(new_user, workspace, admin_name, role):
+        EmailService.send_email(
+            to=new_user.email,
+            subject=f'You were invited to {workspace.name} — Monie',
+            template_name='email/workspace_invitation_new',
+            context={
+                'user_name': new_user.full_name or new_user.email,
+                'workspace_name': workspace.name,
+                'admin_name': admin_name,
+                'role': role,
+                'email': new_user.email,
+            },
+        )
