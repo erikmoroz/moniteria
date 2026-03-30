@@ -34,6 +34,7 @@ pytest budget_accounts/tests/             # Run specific app tests
 pytest budget_accounts/tests/test_api.py::TestClass::test_method  # Single test
 pytest -k "test_create"                   # Run tests matching pattern
 pytest --cov=. --cov-report=html          # With coverage
+pytest --create-db -v                      # Fresh test DB (use when cross-branch migrations cause stale DB issues)
 
 # Linting & Formatting
 uv run ruff check .                       # Check linting issues
@@ -204,6 +205,34 @@ class TransactionService:
         return trans
 ```
 
+### No Nested Helper Functions
+
+Do not define helper functions inside a method body. Extract them as `@staticmethod` methods on the service class. This improves readability, testability, and follows the flat-structure convention used across the codebase.
+
+```python
+# Bad — nested functions inside a method
+class WorkspaceService:
+    def add_member(self, ...):
+        def _send_existing(user, workspace):
+            ...
+        def _send_new(email, workspace):
+            ...
+        _send_existing(user, workspace)
+
+# Good — class-level static methods
+class WorkspaceService:
+    @staticmethod
+    def _send_existing_invite(user, workspace):
+        ...
+
+    @staticmethod
+    def _send_new_invite(email, workspace):
+        ...
+
+    def add_member(self, ...):
+        WorkspaceService._send_existing_invite(user, workspace)
+```
+
 ### Pydantic Schemas
 
 ```python
@@ -247,6 +276,8 @@ class TransactionNotFoundError(NotFoundError):
 ```
 
 ### Testing
+
+Use Factory Boy factories (e.g., `WorkspaceMemberFactory`) instead of direct `Model.objects.create()` calls when creating test database records. Factories exist in `<app>/factories.py` across the codebase.
 
 ```python
 from common.tests.mixins import AuthMixin, APIClientMixin
@@ -304,6 +335,27 @@ export default function CategoryForm({ id, name, onSave }: Props) {
     </form>
   )
 }
+```
+
+### Multi-Step UI Flows
+
+Use a union-typed state machine with conditional rendering for multi-step flows (e.g., setup → verify → confirm):
+
+```typescript
+type SectionState = 'idle' | 'setup' | 'showing_codes' | 'disabling'
+
+const [state, setState] = useState<SectionState>('idle')
+
+if (state === 'showing_codes') return <RecoveryCodesDisplay ... />
+if (state === 'setup' && setupData) return <SetupForm ... />
+
+const mutation = useMutation({
+  mutationFn: api.verifySetup,
+  onSuccess: (data) => {
+    setState('showing_codes')
+    queryClient.invalidateQueries({ queryKey: ['status'] })
+  },
+})
 ```
 
 ### API Client Pattern
