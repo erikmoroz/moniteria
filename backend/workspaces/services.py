@@ -119,6 +119,18 @@ class WorkspaceService:
 
         BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
 
+        workspace_name = workspace.name
+        deleter_name = user.full_name or user.email
+
+        for affected_user in affected_users:
+            au_email = affected_user.email
+            au_name = affected_user.full_name or au_email
+            db_transaction.on_commit(
+                lambda e=au_email, n=au_name: WorkspaceService._send_workspace_deleted_email(
+                    e, n, workspace_name, deleter_name
+                )
+            )
+
         workspace.delete()
 
         user.current_workspace_id = next_ws_map.get(user.id)
@@ -128,6 +140,19 @@ class WorkspaceService:
             affected_user.current_workspace_id = next_ws_map.get(affected_user.id)
 
         UserModel.objects.bulk_update(affected_users, ['current_workspace'])
+
+    @staticmethod
+    def _send_workspace_deleted_email(email, user_name, workspace_name, deleter_name):
+        EmailService.send_email(
+            to=email,
+            subject=f'{workspace_name} was deleted — Monie',
+            template_name='email/workspace_deleted',
+            context={
+                'user_name': user_name,
+                'workspace_name': workspace_name,
+                'deleter_name': deleter_name,
+            },
+        )
 
 
 class CurrencyService:
@@ -294,6 +319,17 @@ class WorkspaceMemberService:
         if member.role == Role.OWNER:
             raise WorkspaceOwnerCannotLeaveError()
 
+        workspace_name = Workspace.objects.get(id=workspace_id).name
+        leaver_name = user.full_name or user.email
+        leaver_id = user.id
+
+        admins = list(
+            User.objects.filter(
+                workspace_memberships__workspace_id=workspace_id,
+                workspace_memberships__role__in=[Role.OWNER, Role.ADMIN],
+            ).exclude(id=leaver_id)
+        )
+
         member.delete()
 
         if user.current_workspace_id == workspace_id:
@@ -302,6 +338,15 @@ class WorkspaceMemberService:
             )
             user.current_workspace = next_workspace
             user.save(update_fields=['current_workspace'])
+
+        for admin in admins:
+            admin_email = admin.email
+            admin_name = admin.full_name or admin.email
+            db_transaction.on_commit(
+                lambda e=admin_email, n=admin_name: WorkspaceMemberService._send_member_left_email(
+                    e, n, leaver_name, workspace_name
+                )
+            )
 
         return {'message': 'Successfully left workspace'}
 
@@ -348,6 +393,18 @@ class WorkspaceMemberService:
         member.role = new_role
         member.save()
 
+        workspace_name = Workspace.objects.get(id=workspace_id).name
+        target_user = User.objects.get(id=member_user_id)
+        target_email = target_user.email
+        target_name = target_user.full_name or target_user.email
+        admin_name = user.full_name or user.email
+
+        db_transaction.on_commit(
+            lambda: WorkspaceMemberService._send_role_changed_email(
+                target_email, target_name, workspace_name, old_role, new_role, admin_name
+            )
+        )
+
         return {
             'message': 'Role updated successfully',
             'user_id': member_user_id,
@@ -387,13 +444,25 @@ class WorkspaceMemberService:
         if current_role == Role.ADMIN and member.role == Role.ADMIN:
             raise WorkspaceMemberAdminInsufficientError('remove')
 
+        removed_user = User.objects.filter(id=member_user_id).first()
+        removed_user_email = removed_user.email if removed_user else None
+        removed_user_name = (removed_user.full_name or removed_user.email) if removed_user else ''
+        workspace_name = Workspace.objects.get(id=workspace_id).name
+        admin_name = user.full_name or user.email
+
         member.delete()
 
-        removed_user = User.objects.filter(id=member_user_id).first()
         if removed_user and removed_user.current_workspace_id == workspace_id:
             next_workspace = Workspace.objects.filter(members__user=removed_user).order_by('-id').first()
             removed_user.current_workspace = next_workspace
             removed_user.save(update_fields=['current_workspace'])
+
+        if removed_user_email:
+            db_transaction.on_commit(
+                lambda: WorkspaceMemberService._send_member_removed_email(
+                    removed_user_email, removed_user_name, workspace_name, admin_name
+                )
+            )
 
     @staticmethod
     def reset_password(user, workspace_id: int, target_user_id: int, new_password: str, current_role: str) -> dict:
@@ -468,5 +537,46 @@ class WorkspaceMemberService:
                 'admin_name': admin_name,
                 'role': role,
                 'email': new_user.email,
+            },
+        )
+
+    @staticmethod
+    def _send_member_removed_email(email, user_name, workspace_name, admin_name):
+        EmailService.send_email(
+            to=email,
+            subject=f'You were removed from {workspace_name} — Monie',
+            template_name='email/member_removed',
+            context={
+                'user_name': user_name,
+                'workspace_name': workspace_name,
+                'admin_name': admin_name,
+            },
+        )
+
+    @staticmethod
+    def _send_member_left_email(email, user_name, leaver_name, workspace_name):
+        EmailService.send_email(
+            to=email,
+            subject=f'{leaver_name} left {workspace_name} — Monie',
+            template_name='email/member_left',
+            context={
+                'user_name': user_name,
+                'leaver_name': leaver_name,
+                'workspace_name': workspace_name,
+            },
+        )
+
+    @staticmethod
+    def _send_role_changed_email(email, user_name, workspace_name, old_role, new_role, admin_name):
+        EmailService.send_email(
+            to=email,
+            subject=f'Your role was changed in {workspace_name} — Monie',
+            template_name='email/role_changed',
+            context={
+                'user_name': user_name,
+                'workspace_name': workspace_name,
+                'old_role': old_role,
+                'new_role': new_role,
+                'admin_name': admin_name,
             },
         )

@@ -174,6 +174,18 @@ export const authApi = {
 
   grantConsent: (consentType: string, version: string) =>
     api.post('/users/me/consents', { consent_type: consentType, version }).then(res => res.data),
+
+  verifyEmail: (token: string) =>
+    api.post('/auth/verify-email', { token }),
+
+  resendVerification: (email: string) =>
+    api.post('/auth/resend-verification', { email }),
+
+  requestEmailChange: (password: string, newEmail: string) =>
+    api.post('/auth/request-email-change', { password, new_email: newEmail }),
+
+  confirmEmailChange: (token: string) =>
+    api.post('/auth/confirm-email-change', { token }),
 };
 
 // ============= Workspaces API =============

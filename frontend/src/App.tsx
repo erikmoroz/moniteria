@@ -22,6 +22,8 @@ import WorkspaceMembersPage from './pages/WorkspaceMembersPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsPage from './pages/TermsPage'
 import ReConsentPage from './pages/ReConsentPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import ConfirmEmailChangePage from './pages/ConfirmEmailChangePage'
 
 function AppContent() {
   return (
@@ -71,6 +73,8 @@ function App() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/reconsent" element={<ProtectedRoute><ReConsentPage /></ProtectedRoute>} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/confirm-email-change" element={<ProtectedRoute><ConfirmEmailChangePage /></ProtectedRoute>} />
 
           {/* Protected routes */}
           <Route path="/*" element={<ProtectedApp />} />
