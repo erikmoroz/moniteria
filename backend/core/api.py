@@ -5,10 +5,11 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from ninja import Router
 
-from common.auth import create_access_token
+from common.auth import create_access_token, create_temp_token, decode_temp_token
 from common.throttle import rate_limit
 from common.utils import get_client_ip
-from core.schemas import DetailOut, ErrorOut, LoginIn, RegisterIn, Token
+from core.schemas import DetailOut, ErrorOut, LoginIn, LoginOut, RegisterIn, Token, Verify2FAIn
+from users.models import UserTwoFactor
 from workspaces.services import WorkspaceService
 
 router = Router(tags=['Auth'])
@@ -60,16 +61,14 @@ def register(request, data: RegisterIn):
     }
 
 
-@router.post('/login', response={200: Token, 401: DetailOut, 429: DetailOut})
+@router.post('/login', response={200: LoginOut, 401: DetailOut, 429: DetailOut})
 @rate_limit('login', limit=10, period=60)
 def login(request, data: LoginIn):
     """
     Login user and return JWT token.
 
-    The token includes:
-    - user_id
-    - email
-    - current_workspace_id
+    If the user has 2FA enabled, returns a temporary token
+    that must be verified before issuing a full JWT.
     """
     try:
         user = User.objects.get(email=data.email)
@@ -82,9 +81,29 @@ def login(request, data: LoginIn):
     if not user.is_active:
         return 401, {'detail': 'User account is disabled'}
 
+    if UserTwoFactor.objects.filter(user=user, is_enabled=True).exists():
+        return 200, LoginOut(requires_2fa=True, temp_token=create_temp_token(user))
+
     access_token = create_access_token(user)
 
-    return 200, {
-        'access_token': access_token,
-        'token_type': 'bearer',
-    }
+    return 200, LoginOut(access_token=access_token)
+
+
+@router.post('/verify-2fa', response={200: Token, 401: DetailOut, 429: DetailOut})
+@rate_limit('verify_2fa', limit=10, period=60)
+def verify_2fa(request, data: Verify2FAIn):
+    payload = decode_temp_token(data.temp_token)
+    if not payload:
+        return 401, {'detail': 'Invalid or expired verification token'}
+
+    user = User.objects.filter(id=payload.get('user_id'), is_active=True).first()
+    if not user:
+        return 401, {'detail': 'User not found'}
+
+    from users.two_factor import TwoFactorService
+
+    if not TwoFactorService.verify_code(user, data.code):
+        return 401, {'detail': 'Invalid verification code'}
+
+    access_token = create_access_token(user)
+    return 200, {'access_token': access_token, 'token_type': 'bearer'}

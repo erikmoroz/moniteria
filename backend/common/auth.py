@@ -20,6 +20,8 @@ class JWTAuth(HttpBearer):
         """Authenticate request using JWT token."""
         try:
             payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+            if payload.get('type') == '2fa_pending':
+                return None
             user_id = payload.get('user_id')
             if user_id is None:
                 return None
@@ -74,6 +76,27 @@ def decode_access_token(token: str) -> dict | None:
     """Decode and validate access token."""
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        return payload
+    except jwt.PyJWTError:
+        return None
+
+
+def create_temp_token(user: User) -> str:
+    now = datetime.datetime.now(datetime.timezone.utc)
+    payload = {
+        'user_id': str(user.id),
+        'type': '2fa_pending',
+        'iat': now.timestamp(),
+        'exp': (now + datetime.timedelta(minutes=5)).timestamp(),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_temp_token(token: str) -> dict | None:
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        if payload.get('type') != '2fa_pending':
+            return None
         return payload
     except jwt.PyJWTError:
         return None
