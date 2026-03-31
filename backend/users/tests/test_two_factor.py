@@ -368,3 +368,25 @@ class TestAdminReset2FA(_Base):
             HTTP_AUTHORIZATION=f'Bearer {self.admin_token}',
         )
         self.assertEqual(response.status_code, 404)
+
+
+class TestTwoFAExport(_Base):
+    def test_export_includes_2fa_when_not_configured(self):
+        from users.services import UserService
+
+        data = UserService.export_all_data(self.user)
+        self.assertIn('two_factor', data)
+        self.assertFalse(data['two_factor']['is_enabled'])
+        self.assertIsNone(data['two_factor']['last_used_at'])
+        self.assertIsNone(data['two_factor']['created_at'])
+
+    def test_export_includes_2fa_when_enabled(self):
+        from users.services import UserService
+
+        self._enable_2fa(self.user)
+        data = UserService.export_all_data(self.user)
+        self.assertIn('two_factor', data)
+        self.assertTrue(data['two_factor']['is_enabled'])
+        self.assertIsNotNone(data['two_factor']['created_at'])
+        self.assertNotIn('encrypted_secret', data['two_factor'])
+        self.assertNotIn('hashed_recovery_codes', data['two_factor'])
