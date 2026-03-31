@@ -66,6 +66,40 @@ class TestRequestEmailChange(AuthTestCase):
         self.assertStatus(400)
         self.assertIn('already in use', data['detail'].lower())
 
+    @patch.object(transaction, 'on_commit', side_effect=_immediate_on_commit)
+    def test_request_email_change_uppercase_normalized(self, mock_on_commit):
+        user = UserFactory(email='original@example.com', full_name='Upper User')
+        user.set_password('testpass123')
+        user.save()
+        token = create_access_token(user)
+        mail.outbox.clear()
+
+        self.post(
+            '/api/auth/request-email-change',
+            {'password': 'testpass123', 'new_email': 'UPPER@Example.COM'},
+            **self.auth_headers(token),
+        )
+        self.assertStatus(200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['upper@example.com'])
+
+        user.refresh_from_db()
+        self.assertEqual(user.pending_email, 'upper@example.com')
+
+        change_token = generate_email_change_token(user.id, 'upper@example.com')
+        mail.outbox.clear()
+
+        self.post(
+            '/api/auth/confirm-email-change',
+            {'token': change_token},
+            **self.auth_headers(token),
+        )
+        self.assertStatus(200)
+
+        user.refresh_from_db()
+        self.assertEqual(user.email, 'upper@example.com')
+        self.assertTrue(user.email_verified)
+
 
 class TestConfirmEmailChange(AuthTestCase):
     def _setup_user_with_pending_email(self):

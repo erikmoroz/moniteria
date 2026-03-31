@@ -169,7 +169,9 @@ class UserService:
         if not user.check_password(password):
             raise UserInvalidPasswordError()
 
-        if new_email.lower() == user.email.lower():
+        new_email = new_email.lower()
+
+        if new_email == user.email.lower():
             raise UserSameEmailError()
 
         if User.objects.filter(email__iexact=new_email).exists():
@@ -206,7 +208,7 @@ class UserService:
         if user.id != user_id:
             raise UserInvalidEmailChangeTokenError()
 
-        if user.pending_email != new_email:
+        if user.pending_email.lower() != new_email.lower():
             raise UserInvalidEmailChangeTokenError('This email change request is no longer valid')
 
         if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
