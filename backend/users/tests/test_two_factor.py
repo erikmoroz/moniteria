@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.test import Client, TestCase
 
 from common.auth import create_access_token
-from common.tests.factories import BudgetAccountFactory, UserFactory
+from common.tests.factories import UserFactory
 from users.two_factor import TwoFactorService
 from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 
@@ -23,14 +23,6 @@ class _Base(TestCase):
         self.workspace.owner = self.user
         self.workspace.save()
         WorkspaceMemberFactory(workspace=self.workspace, user=self.user, role='owner')
-        BudgetAccountFactory(
-            workspace=self.workspace,
-            name='General',
-            default_currency=self.workspace.currencies.filter(symbol='PLN').first(),
-            is_active=True,
-            display_order=0,
-            created_by=self.user,
-        )
         self.auth_token = create_access_token(self.user)
 
     def auth_headers(self):

@@ -23,3 +23,8 @@
 **Files changed:**
 - `backend/core/api.py` — Added `TwoFactorNotEnabledError` import and `404: DetailOut` to the `/verify-2fa` response schema. Added a check after fetching the user (before verifying the code) that raises `TwoFactorNotEnabledError` if the 2FA record is missing or not enabled. This provides a meaningful 404 error instead of a misleading "Invalid verification code" (401) when an admin resets 2FA between `/login` and `/verify-2fa`.
 - `backend/users/tests/test_two_factor.py` — Added `TestVerify2FAEndpoint` class with `test_verify_2fa_returns_404_when_2fa_disabled_mid_flow`: enables 2FA, logs in to obtain a temp token, disables 2FA via `TwoFactorService.disable()`, then calls `/verify-2fa` and asserts a 404 with "not enabled" in the response detail.
+
+## Fix #6: Test cleanup — remove unnecessary BudgetAccountFactory from _Base.setUp
+
+**Files changed:**
+- `backend/users/tests/test_two_factor.py` — Removed `BudgetAccountFactory` from the top-level import (line 9) and removed the `BudgetAccountFactory(...)` call from `_Base.setUp` (lines 26-33). No 2FA test uses the budget account, so this was unnecessary test setup that added overhead to every test.
