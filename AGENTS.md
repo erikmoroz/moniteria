@@ -233,6 +233,63 @@ class WorkspaceService:
         WorkspaceService._send_existing_invite(user, workspace)
 ```
 
+### Check Object State, Not Just Existence
+
+When a model has a boolean flag (e.g., `is_enabled`, `is_active`), always check both the object's existence AND the flag. Records can exist in intermediate/disabled states, and a simple truthiness check on the object silently misses `flag=False`.
+
+```python
+# Bad — only checks existence, misses is_enabled=False
+twofa = UserTwoFactor.objects.filter(user_id=user_id).first()
+if not twofa:
+    raise TwoFactorNotEnabledError()
+
+# Good — checks existence AND enabled state
+twofa = UserTwoFactor.objects.filter(user_id=user_id).first()
+if not twofa or not twofa.is_enabled:
+    raise TwoFactorNotEnabledError()
+```
+
+This applies to any model with status flags: `is_enabled`, `is_active`, `is_verified`, etc.
+
+### Validate Stateful Dependencies Before Operations
+
+When an endpoint or service method depends on a resource being in a specific state, validate that state **before** attempting the main operation. This provides a meaningful, specific error instead of a misleading generic one.
+
+```python
+# Bad — user gets "Invalid verification code" when the real issue is 2FA was disabled
+@router.post('/verify-2fa')
+def verify_2fa(request, data):
+    user = get_user(data.temp_token)
+    if not TwoFactorService.verify_code(user, data.code):
+        return 401, {'detail': 'Invalid verification code'}
+
+# Good — check 2FA state first, then verify the code
+@router.post('/verify-2fa', response={200: Token, 401: DetailOut, 404: DetailOut})
+def verify_2fa(request, data):
+    user = get_user(data.temp_token)
+    tf = UserTwoFactor.objects.filter(user=user).first()
+    if not tf or not tf.is_enabled:
+        raise TwoFactorNotEnabledError()
+    if not TwoFactorService.verify_code(user, data.code):
+        return 401, {'detail': 'Invalid verification code'}
+```
+
+### Document All Possible Response Status Codes
+
+Every endpoint's `response` parameter must list **all** status codes the endpoint can return, including those from raised exceptions. This serves as documentation and ensures Django Ninja generates accurate API schemas.
+
+```python
+# Bad — 404 is possible but not documented
+@router.post('/verify-2fa', response={200: Token, 401: DetailOut})
+def verify_2fa(request, data):
+    raise TwoFactorNotEnabledError()  # returns 404, but it's not in the response schema
+
+# Good — all status codes are documented
+@router.post('/verify-2fa', response={200: Token, 401: DetailOut, 404: DetailOut})
+def verify_2fa(request, data):
+    ...
+```
+
 ### Pydantic Schemas
 
 ```python
@@ -260,19 +317,29 @@ class TransactionOut(BaseModel):
 - **Exception Types**: `NotFoundError` (404), `ValidationError` (400), `AuthenticationError` (401), `PermissionDeniedError` (403)
 - **App Exceptions**: Each app defines specific exceptions in `<app>/exceptions.py` (e.g., `TransactionNotFoundError`)
 - **Transactions**: Use `@db_transaction.atomic` for database operations that update balances
+- **Exception Naming**: `<Domain><ErrorType>Error` — e.g., `TwoFactorNotEnabledError`, `TransactionNotFoundError`. Always set `default_message` and `default_code` as class attributes
+- **Exception Codes**: Every domain exception should include a `default_code` (snake_case string) for frontend error matching (e.g., `'two_factor_not_enabled'`, `'invalid_password'`)
 
 ```python
 # common/exceptions.py
 class ServiceError(Exception):
     http_status: int = 500
     default_message: str = 'An unexpected error occurred'
+    default_code: str | None = None
 
 class NotFoundError(ServiceError):
     http_status = 404
+    default_message = 'Not found'
 
-# transactions/exceptions.py
-class TransactionNotFoundError(NotFoundError):
-    default_message = 'Transaction not found'
+# users/exceptions.py
+class TwoFactorNotEnabledError(NotFoundError):
+    default_message = 'Two-factor authentication is not enabled for this user'
+    default_code = 'two_factor_not_enabled'
+
+# For exceptions with dynamic messages, accept params in __init__:
+class CurrencyNotFoundInWorkspaceError(ValidationError):
+    def __init__(self, currency: str):
+        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
 ```
 
 ### Testing
@@ -454,7 +521,9 @@ Do not "fix" these to return 404 — the empty array behavior is intentional.
 >   correctly) before parent objects are removed. `on_delete=PROTECT` fields must be deleted
 >   in dependency order; otherwise account deletion will raise an `OperationalError`.
 > - `UserService.export_all_data()` — include the new model's data in the JSON export so
->   users receive a complete copy of their personal data (GDPR Art. 20).
+>   users receive a complete copy of their personal data (GDPR Art. 20). Export only
+>   non-sensitive fields (e.g., `is_enabled`, `created_at`, `last_used_at`). Never include
+>   secrets, encrypted values, or hashed tokens in the export.
 
 > **When adding new data fields, processing purposes, or third-party integrations**, update
 > the legal pages to keep them accurate:
