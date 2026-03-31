@@ -13,6 +13,11 @@
 - `backend/users/two_factor.py` — Imported `TwoFactorNotEnabledError`. Updated `TwoFactorService.admin_reset` to check `not twofa.is_enabled` in addition to `not twofa`, so pending-setup records (`is_enabled=False`) raise the error instead of being silently deleted.
 - `backend/users/tests/test_two_factor.py` — Added `test_reset_when_2fa_pending_setup` to `TestAdminReset2FA`: creates a pending 2FA setup record via `TwoFactorService.setup()`, then asserts `admin_reset` returns 404.
 
+## Fix #5: Test cleanup — move inline imports to top level
+
+**Files changed:**
+- `backend/users/tests/test_two_factor.py` — Added `Client` to the top-level import `from django.test import Client, TestCase`. Removed 23 inline `from django.test import Client` statements (and trailing blank lines) from inside individual test methods across all test classes (`TestTwoFASetup`, `TestTwoFADisable`, `TestTwoFAStatus`, `TestTwoFARegenerateCodes`, `TestAdminReset2FA`, `TestVerify2FAEndpoint`).
+
 ## Fix #4: Improve verify-2fa error when 2FA disabled mid-flow
 
 **Files changed:**

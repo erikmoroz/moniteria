@@ -3,7 +3,7 @@
 import pyotp
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import Client, TestCase
 
 from common.auth import create_access_token
 from common.tests.factories import BudgetAccountFactory, UserFactory
@@ -53,8 +53,6 @@ class _Base(TestCase):
 
 class TestTwoFASetup(_Base):
     def test_setup_returns_qr_code_and_secret(self):
-        from django.test import Client
-
         client = Client()
         response = client.post(
             '/api/users/me/2fa/setup',
@@ -67,8 +65,6 @@ class TestTwoFASetup(_Base):
         self.assertTrue(len(data['secret_key']) > 10)
 
     def test_verify_setup_with_valid_code(self):
-        from django.test import Client
-
         client = Client()
         setup = TwoFactorService.setup(self.user)
         secret = setup['secret_key']
@@ -85,8 +81,6 @@ class TestTwoFASetup(_Base):
         self.assertEqual(len(data['recovery_codes']), 8)
 
     def test_verify_setup_with_invalid_code(self):
-        from django.test import Client
-
         client = Client()
         TwoFactorService.setup(self.user)
 
@@ -99,8 +93,6 @@ class TestTwoFASetup(_Base):
         self.assertEqual(response.status_code, 401)
 
     def test_verify_setup_without_prior_setup(self):
-        from django.test import Client
-
         client = Client()
         response = client.post(
             '/api/users/me/2fa/verify-setup',
@@ -111,8 +103,6 @@ class TestTwoFASetup(_Base):
         self.assertEqual(response.status_code, 404)
 
     def test_setup_when_already_enabled_fails(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
@@ -126,8 +116,6 @@ class TestTwoFASetup(_Base):
 
 class TestTwoFADisable(_Base):
     def test_disable_with_correct_password(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
@@ -146,8 +134,6 @@ class TestTwoFADisable(_Base):
         self.assertEqual(status.json()['enabled'], False)
 
     def test_disable_with_wrong_password(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
@@ -160,8 +146,6 @@ class TestTwoFADisable(_Base):
         self.assertEqual(response.status_code, 401)
 
     def test_disable_when_not_enabled(self):
-        from django.test import Client
-
         client = Client()
         response = client.post(
             '/api/users/me/2fa/disable',
@@ -174,8 +158,6 @@ class TestTwoFADisable(_Base):
 
 class TestTwoFAStatus(_Base):
     def test_status_when_not_configured(self):
-        from django.test import Client
-
         client = Client()
         response = client.get(
             '/api/users/me/2fa',
@@ -187,8 +169,6 @@ class TestTwoFAStatus(_Base):
         self.assertEqual(data['remaining_recovery_codes'], 0)
 
     def test_status_when_enabled(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
@@ -202,8 +182,6 @@ class TestTwoFAStatus(_Base):
         self.assertEqual(data['remaining_recovery_codes'], 8)
 
     def test_status_shows_remaining_codes(self):
-        from django.test import Client
-
         client = Client()
         secret, recovery_codes = self._enable_2fa(self.user)
 
@@ -222,8 +200,6 @@ class TestTwoFAStatus(_Base):
 
 class TestTwoFARegenerateCodes(_Base):
     def test_regenerate_with_correct_password(self):
-        from django.test import Client
-
         client = Client()
         secret, old_codes = self._enable_2fa(self.user)
 
@@ -239,8 +215,6 @@ class TestTwoFARegenerateCodes(_Base):
         self.assertNotEqual(new_codes, old_codes)
 
     def test_regenerate_with_wrong_password(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
@@ -253,8 +227,6 @@ class TestTwoFARegenerateCodes(_Base):
         self.assertEqual(response.status_code, 401)
 
     def test_regenerate_when_not_enabled(self):
-        from django.test import Client
-
         client = Client()
         response = client.post(
             '/api/users/me/2fa/regenerate-codes',
@@ -276,8 +248,6 @@ class TestAdminReset2FA(_Base):
         return f'/api/workspaces/{self.workspace.id}/members/{user_id}/reset-2fa'
 
     def test_admin_can_reset_member_2fa(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.member)
 
@@ -290,8 +260,6 @@ class TestAdminReset2FA(_Base):
         self.assertIn('message', response.json())
 
     def test_owner_can_reset_member_2fa(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.member)
 
@@ -303,8 +271,6 @@ class TestAdminReset2FA(_Base):
         self.assertEqual(response.status_code, 200)
 
     def test_admin_cannot_reset_admin_2fa(self):
-        from django.test import Client
-
         client = Client()
         other_admin = self._create_member('other_admin@example.com', role='admin')
         self._enable_2fa(other_admin)
@@ -317,8 +283,6 @@ class TestAdminReset2FA(_Base):
         self.assertEqual(response.status_code, 403)
 
     def test_cannot_reset_own_2fa(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.admin)
 
@@ -330,8 +294,6 @@ class TestAdminReset2FA(_Base):
         self.assertEqual(response.status_code, 400)
 
     def test_cannot_reset_owner_2fa(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
@@ -343,8 +305,6 @@ class TestAdminReset2FA(_Base):
         self.assertEqual(response.status_code, 400)
 
     def test_viewer_cannot_reset_2fa(self):
-        from django.test import Client
-
         client = Client()
         viewer = self._create_member('viewer@example.com', role='viewer')
         viewer_token = create_access_token(viewer)
@@ -358,8 +318,6 @@ class TestAdminReset2FA(_Base):
         self.assertEqual(response.status_code, 403)
 
     def test_reset_when_2fa_not_enabled(self):
-        from django.test import Client
-
         client = Client()
 
         response = client.post(
@@ -370,8 +328,6 @@ class TestAdminReset2FA(_Base):
         self.assertEqual(response.status_code, 404)
 
     def test_reset_when_2fa_pending_setup(self):
-        from django.test import Client
-
         client = Client()
         TwoFactorService.setup(self.member)
 
@@ -407,8 +363,6 @@ class TestTwoFAExport(_Base):
 
 class TestVerify2FAEndpoint(_Base):
     def test_verify_2fa_returns_404_when_2fa_disabled_mid_flow(self):
-        from django.test import Client
-
         client = Client()
         self._enable_2fa(self.user)
 
