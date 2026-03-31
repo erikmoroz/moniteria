@@ -150,16 +150,14 @@ class UserService:
         token = generate_verification_token(user.id)
         verification_url = f'{settings.FRONTEND_URL}/verify-email?token={token}'
 
-        db_transaction.on_commit(
-            lambda: EmailService.send_email(
-                to=user.email,
-                subject='Verify your email — Monie',
-                template_name='email/verify_email',
-                context={
-                    'user_name': user.full_name or user.email,
-                    'verification_url': verification_url,
-                },
-            )
+        EmailService.send_email(
+            to=user.email,
+            subject='Verify your email — Monie',
+            template_name='email/verify_email',
+            context={
+                'user_name': user.full_name or user.email,
+                'verification_url': verification_url,
+            },
         )
         return message
 

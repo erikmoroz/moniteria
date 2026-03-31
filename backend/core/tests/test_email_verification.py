@@ -61,8 +61,7 @@ class TestVerifyEmail(AuthTestCase):
 
 
 class TestResendVerification(AuthTestCase):
-    @patch.object(transaction, 'on_commit', side_effect=_immediate_on_commit)
-    def test_resend_verification_sends_email(self, mock_on_commit):
+    def test_resend_verification_sends_email(self):
         user = self.create_user(email='resend@example.com', password='testpass123')
         user.email_verified = False
         user.save(update_fields=['email_verified'])
