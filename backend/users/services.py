@@ -80,7 +80,7 @@ class UserService:
         user.set_password(new_password)
         user.save()
 
-        db_transaction.on_commit(lambda: UserService.send_password_changed_email(user))
+        UserService.send_password_changed_email(user)
 
     @staticmethod
     def send_reset_password_email(user) -> None:

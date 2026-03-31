@@ -135,7 +135,7 @@ def forgot_password(request, data: ForgotPasswordIn):
     if not user:
         return 200, {'message': message}
 
-    transaction.on_commit(lambda: UserService.send_reset_password_email(user))
+    UserService.send_reset_password_email(user)
     return 200, {'message': message}
 
 
