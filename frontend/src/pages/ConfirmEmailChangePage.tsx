@@ -11,19 +11,24 @@ export default function ConfirmEmailChangePage() {
   const { updateUser } = useAuth()
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    if (!token) {
-      setState('error')
-      return
+    const confirm = async () => {
+      const token = searchParams.get('token')
+      if (!token) {
+        setState('error')
+        return
+      }
+
+      try {
+        await authApi.confirmEmailChange(token)
+        const updatedUser = await authApi.getCurrentUser()
+        updateUser(updatedUser)
+        setState('success')
+      } catch {
+        setState('error')
+      }
     }
 
-    authApi
-      .confirmEmailChange(token)
-      .then(() => {
-        updateUser({ email_verified: true })
-        setState('success')
-      })
-      .catch(() => setState('error'))
+    confirm()
   }, [searchParams, updateUser])
 
   return (
