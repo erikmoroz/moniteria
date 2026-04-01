@@ -161,7 +161,9 @@ export default function ProfilePage() {
             />
           )}
 
-          {activeTab === 'security' && <TwoFactorSection />}
+          <div className={activeTab === 'security' ? '' : 'hidden'}>
+            <TwoFactorSection />
+          </div>
 
           {activeTab === 'preferences' && (
             <PreferencesForm
