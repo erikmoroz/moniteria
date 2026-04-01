@@ -177,12 +177,14 @@ def setup_2fa(request):
     return 200, TwoFactorService.setup(request.auth)
 
 
-@router.post('/me/2fa/verify-setup', auth=JWTAuth(), response={200: TwoFAVerifySetupOut, 401: DetailOut})
+@router.post(
+    '/me/2fa/verify-setup', auth=JWTAuth(), response={200: TwoFAVerifySetupOut, 401: DetailOut, 404: DetailOut}
+)
 def verify_setup_2fa(request, data: TwoFAVerifySetupIn):
     return 200, TwoFactorService.verify_and_enable(request.auth, data.code)
 
 
-@router.post('/me/2fa/disable', auth=JWTAuth(), response={200: MessageOut, 401: DetailOut})
+@router.post('/me/2fa/disable', auth=JWTAuth(), response={200: MessageOut, 401: DetailOut, 404: DetailOut})
 def disable_2fa(request, data: TwoFADisableIn):
     if not request.auth.check_password(data.password):
         return 401, {'detail': 'Invalid current password'}
@@ -190,7 +192,9 @@ def disable_2fa(request, data: TwoFADisableIn):
     return 200, {'message': 'Two-factor authentication has been disabled'}
 
 
-@router.post('/me/2fa/regenerate-codes', auth=JWTAuth(), response={200: TwoFARegenerateOut, 401: DetailOut})
+@router.post(
+    '/me/2fa/regenerate-codes', auth=JWTAuth(), response={200: TwoFARegenerateOut, 401: DetailOut, 404: DetailOut}
+)
 def regenerate_2fa_codes(request, data: TwoFARegenerateIn):
     if not request.auth.check_password(data.password):
         return 401, {'detail': 'Invalid current password'}
