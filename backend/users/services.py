@@ -1,6 +1,7 @@
 """Business logic for the users app."""
 
 from django.conf import settings
+from django.db import IntegrityError
 from django.db import transaction as db_transaction
 
 from common.email import EmailService
@@ -77,8 +78,9 @@ class UserService:
         if not user.check_password(current_password):
             raise UserInvalidPasswordError()
 
-        user.set_password(new_password)
-        user.save()
+        with db_transaction.atomic():
+            user.set_password(new_password)
+            user.save(update_fields=['password'])
 
         UserService.send_password_changed_email(user)
 
@@ -219,7 +221,10 @@ class UserService:
         user.email = new_email
         user.pending_email = ''
         user.email_verified = True
-        user.save(update_fields=['email', 'pending_email', 'email_verified'])
+        try:
+            user.save(update_fields=['email', 'pending_email', 'email_verified'])
+        except IntegrityError:
+            raise UserEmailAlreadyInUseError()
 
         user_name = user.full_name or new_email
 
