@@ -108,7 +108,20 @@ from workspaces.models import WRITE_ROLES
 
 ### Input Normalization
 
-Normalize user inputs (emails, strings, etc.) early in the flow — right after validation — so all downstream logic (uniqueness checks, token generation, email sending) uses the normalized value:
+Normalize user inputs (emails, strings, etc.) early in the flow — at the schema/validation level — so all downstream logic (uniqueness checks, token generation, email sending) uses the normalized value. The `ValidatedEmail` type lowercases emails before they reach any endpoint:
+
+```python
+def _validate_email(v: str) -> str:
+    v = v.lower().strip()
+    validator = EmailValidator()
+    try:
+        validator(v)
+    except DjangoValidationError:
+        raise ValueError('Enter a valid email address')
+    return v
+```
+
+For inputs not covered by a schema validator (e.g., direct function arguments), normalize immediately after validation:
 
 ```python
 @staticmethod
@@ -117,16 +130,34 @@ def request_email_change(user, new_email: str, password: str):
     if not user.check_password(password):
         raise InvalidPasswordError()
     new_email = new_email.lower()
-    if new_email == user.email.lower():
+    if new_email == user.email:
         raise SameEmailError()
     # ... rest of logic uses normalized new_email
 ```
 
-For comparisons, apply normalization on both sides as a defense-in-depth safety net, even if upstream normalization already occurred:
+### Email Lookups
+
+Emails are always stored as lowercase. The `UserManager.normalize_email` and `User.save()` handle this automatically, and the `ValidatedEmail` schema normalizes input. Use exact match for email lookups:
 
 ```python
-if user.pending_email.lower() != new_email.lower():
-    raise EmailMismatchError()
+user = User.objects.filter(email=data.email).first()
+if not user:
+    raise UserNotFoundError()
+```
+
+Prefer `filter().first()` with a `None` check over `get()` with `try/except DoesNotExist`. It follows the return-early pattern and avoids exception-driven control flow:
+
+```python
+# Bad: exception-driven control flow
+try:
+    user = User.objects.get(email=data.email)
+except User.DoesNotExist:
+    raise UserNotFoundError()
+
+# Good: explicit None check
+user = User.objects.filter(email=data.email).first()
+if not user:
+    raise UserNotFoundError()
 ```
 
 ### Return Early Pattern
@@ -300,6 +331,55 @@ class TransactionOut(BaseModel):
     amount: Decimal
 ```
 
+### Shared Validated Types
+
+When identical Pydantic field validators are repeated across schemas, extract them into a shared `Annotated` type using `BeforeValidator`:
+
+```python
+from typing import Annotated
+from pydantic import BeforeValidator
+
+def _validate_email(value: str) -> str:
+    return value.lower().strip()
+
+ValidatedEmail = Annotated[str, BeforeValidator(_validate_email)]
+
+class RegisterIn(BaseModel):
+    email: ValidatedEmail
+
+class ForgotPasswordIn(BaseModel):
+    email: ValidatedEmail
+```
+
+Define the validation function as a module-level private function (`_validate_email`) and the annotated type as a module constant. Only extract validators that are truly identical across all schemas — keep separate validators on schemas that have additional concerns or may diverge.
+
+For email validators, include `.lower().strip()` in the validator so that all downstream code receives pre-normalized values:
+
+```python
+def _validate_email(v: str) -> str:
+    v = v.lower().strip()
+    validator = EmailValidator()
+    try:
+        validator(v)
+    except DjangoValidationError:
+        raise ValueError('Enter a valid email address')
+    return v
+```
+
+### Safe Defaults for `getattr` Fallbacks
+
+When using `getattr` as a safety net for fields added by recent migrations (e.g., during rolling deploys where code ships before migrations), always default to the more restrictive/secure value:
+
+```python
+# Bad: default True silently grants privileges during rolling deploy
+email_verified = getattr(user, 'email_verified', True)
+
+# Good: default False fails safe
+email_verified = getattr(user, 'email_verified', False)
+```
+
+This applies to verification flags, permission flags, and any security-relevant booleans. The `getattr` fallback is only needed temporarily during migrations — after the migration runs, the actual model field value is used.
+
 ### Error Handling
 
 - **Domain Exceptions**: Services raise domain exceptions inheriting from `ServiceError` (in `common/exceptions.py`)
@@ -415,6 +495,9 @@ Unused imports create noise and can mislead future readers about what a module d
 
 ### Component Pattern
 
+- Remove unused props from component interfaces — dead props create misleading API surfaces and confuse future developers.
+- When a component handles a concern internally (e.g., resend verification via API call), don't also expose a callback prop for the same concern. One mechanism is enough.
+
 ```tsx
 interface Props {
   id: number
@@ -481,6 +564,7 @@ export default function VerifyPage() {
 - Public verification pages go outside `ProtectedRoute`; authenticated pages are wrapped in `ProtectedRoute`
 - Success states should offer a navigation link; error states should offer a retry or resend option
 - Use a named `async` function inside `useEffect` with `try/catch/await` — avoid mixing `.then()` chains with async calls
+- Never swallow errors by showing the same success state in both `try` and `catch` blocks. Add a distinct error state with a retry option so users can recover from failures.
 
 ### Frontend State Refresh After Mutations
 
@@ -594,6 +678,8 @@ Do not "fix" these to return 404 — the empty array behavior is intentional.
 >   in dependency order; otherwise account deletion will raise an `OperationalError`.
 > - `UserService.export_all_data()` — include the new model's data in the JSON export so
 >   users receive a complete copy of their personal data (GDPR Art. 20).
+>   Normalize nullable string fields with `or None` (e.g., `user.pending_email or None`) to
+>   convert empty strings to `None` for cleaner JSON output.
 
 > **When adding new data fields, processing purposes, or third-party integrations**, update
 > the legal pages to keep them accurate:
@@ -751,6 +837,23 @@ These endpoints always return 200 with the same generic message regardless of in
 - `POST /api/auth/resend-verification` — "If your email is unverified, a new verification email has been sent."
 
 Never reveal whether an email address is registered.
+
+**Timing normalization:** Anti-enumeration endpoints can still leak information via response timing (the "send email" path is measurably slower than the "user not found" early-return path). Mitigate by adding `time.sleep(random.uniform(0.1, 0.3))` on early-return paths:
+
+```python
+import random
+import time
+
+@router.post('/forgot-password', response={200: MessageOut})
+def forgot_password(request, data: ForgotPasswordIn):
+    user = User.objects.filter(email=data.email).first()
+    if not user:
+        time.sleep(random.uniform(0.1, 0.3))  # Normalize response time to reduce timing side-channel
+        return 200, {'message': 'If an account exists with this email, a reset link has been sent.'}
+    # ... send reset email (naturally slow) ...
+```
+
+Import `random` and `time` at the module level (stdlib imports, before Django/third-party).
 
 ### Environment Variables
 

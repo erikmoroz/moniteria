@@ -151,7 +151,7 @@ class UserService:
     @staticmethod
     def resend_verification(email: str) -> str:
         message = 'If your email is unverified, a new verification email has been sent.'
-        user = User.objects.filter(email__iexact=email).first()
+        user = User.objects.filter(email=email).first()
         if not user or user.email_verified:
             # Normalize response time to reduce timing side-channel
             time.sleep(random.uniform(0.1, 0.3))
@@ -179,10 +179,10 @@ class UserService:
 
         new_email = new_email.lower()
 
-        if new_email == user.email.lower():
+        if new_email == user.email:
             raise UserSameEmailError()
 
-        if User.objects.filter(email__iexact=new_email).exists():
+        if User.objects.filter(email=new_email).exists():
             raise UserEmailAlreadyInUseError()
 
         user.pending_email = new_email
@@ -216,10 +216,10 @@ class UserService:
         if user.id != user_id:
             raise UserInvalidEmailChangeTokenError()
 
-        if user.pending_email.lower() != new_email.lower():
+        if user.pending_email != new_email:
             raise UserInvalidEmailChangeTokenError('This email change request is no longer valid')
 
-        if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
+        if User.objects.filter(email=new_email).exclude(id=user.id).exists():
             raise UserEmailAlreadyInUseError()
 
         old_email = user.email

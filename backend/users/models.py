@@ -16,6 +16,9 @@ class WeekdayChoices(IntegerChoices):
 class UserManager(BaseUserManager):
     """Custom user manager for email-based authentication."""
 
+    def normalize_email(self, email):
+        return email.lower().strip()
+
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email field must be set')
@@ -55,6 +58,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'users'
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.lower().strip()
+        if self.pending_email:
+            self.pending_email = self.pending_email.lower().strip()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email

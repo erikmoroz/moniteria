@@ -8,6 +8,7 @@ from pydantic import BaseModel, BeforeValidator, Field, field_validator
 
 
 def _validate_email(v: str) -> str:
+    v = v.lower().strip()
     validator = EmailValidator()
     try:
         validator(v)
@@ -44,6 +45,7 @@ class LoginIn(BaseModel):
     @classmethod
     def validate_email(cls, v: str) -> str:
         """Validate email format using Django's email validator."""
+        v = v.lower().strip()
         validator = EmailValidator()
         try:
             validator(v)
@@ -86,6 +88,7 @@ class RegisterIn(BaseModel):
     @classmethod
     def validate_email(cls, v: str) -> str:
         """Validate email format using Django's email validator."""
+        v = v.lower().strip()
         validator = EmailValidator()
         try:
             validator(v)

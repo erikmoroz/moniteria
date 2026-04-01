@@ -92,7 +92,7 @@ def login(request, data: LoginIn):
     - email
     - current_workspace_id
     """
-    user = User.objects.filter(email__iexact=data.email).first()
+    user = User.objects.filter(email=data.email).first()
     if not user:
         return 401, {'detail': 'Invalid email or password'}
     if not user.check_password(data.password):
@@ -129,7 +129,7 @@ def resend_verification(request, data: ResendVerificationIn):
 def forgot_password(request, data: ForgotPasswordIn):
     from users.services import UserService
 
-    user = User.objects.filter(email__iexact=data.email).first()
+    user = User.objects.filter(email=data.email).first()
     message = 'If an account exists with this email, a reset link has been sent.'
 
     if not user:

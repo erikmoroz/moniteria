@@ -238,7 +238,7 @@ class WorkspaceMemberService:
         if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
             raise WorkspaceMemberLimitReachedError()
 
-        existing_user = User.objects.filter(email=data.email).first()
+        existing_user = User.objects.filter(email=data.email.lower()).first()
 
         if existing_user:
             existing_member = WorkspaceMember.objects.filter(
