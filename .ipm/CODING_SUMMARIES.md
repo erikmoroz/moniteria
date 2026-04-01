@@ -299,7 +299,7 @@ def rate_limit_by_key(key_prefix: str, key_extractor, limit: int = 10, period: i
     """Combines client IP with a custom key (e.g. user_id from temp token)."""
 ```
 
-The key extractor for `verify-2fa` uses `decode_temp_token` (non-consuming) to peek at the token's `user_id`. Invalid tokens get key `'invalid'`, which safely groups all bad-token attempts together.
+The key extractor for `verify-2fa` uses `decode_temp_token` (non-consuming) to peek at the token's `user_id`. Invalid tokens return `str(uuid.uuid4())` so each gets a unique bucket — a fixed key like `'invalid'` would let an attacker exhaust it from a shared IP, blocking legitimate 2FA for other users on that IP (see Round 3, Task 2).
 
 ### Rate Limit Values in Django Settings
 
@@ -315,3 +315,19 @@ RATE_LIMIT_VERIFY_2FA_PERIOD = int(os.getenv('RATE_LIMIT_VERIFY_2FA_PERIOD', '60
 Endpoints reference these via `settings.RATE_LIMIT_*` instead of hardcoded values. This allows runtime configuration without code changes, and the comments serve as documentation for env var configuration.
 
 **Files changed:** `backend/common/throttle.py`, `backend/core/api.py`, `backend/users/api.py`, `backend/config/settings.py`
+
+### Unique Bucket per Invalid Token (No Shared Exhaustion)
+
+**Context:** Round 3, Task 2 — Fix shared rate-limit bucket for invalid temp tokens
+
+When `decode_temp_token` returns `None` (garbage/invalid token), the key extractor in `_extract_2fa_rate_key` returns `str(uuid.uuid4())` instead of a fixed string. This prevents all invalid-token attempts from sharing a single rate-limit bucket (`ratelimit:verify_2fa:{ip}:invalid`), which an attacker on a shared IP could exhaust to block legitimate 2FA verification for other users.
+
+```python
+def _extract_2fa_rate_key(request, data: Verify2FAIn = None, **kwargs):
+    payload = decode_temp_token(data.temp_token)
+    return str(payload.get('user_id', 'unknown')) if payload else str(uuid.uuid4())
+```
+
+The IP portion of the key still prevents unlimited flooding from a single source.
+
+**Files changed:** `backend/core/api.py`

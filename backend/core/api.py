@@ -1,5 +1,7 @@
 """Django-Ninja API endpoints for authentication (register, login)."""
 
+import uuid
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -91,8 +93,15 @@ def login(request, data: LoginIn):
 
 
 def _extract_2fa_rate_key(request, data: Verify2FAIn = None, **kwargs):
+    """Extract a per-user rate-limit key from the temp token.
+
+    For valid tokens, returns the user_id so attempts are bucketed per (IP, user).
+    For invalid tokens, returns a random UUID per request to avoid a shared bucket —
+    a fixed key like 'invalid' would let an attacker exhaust it from a shared IP,
+    blocking legitimate 2FA verification for other users on that IP.
+    """
     payload = decode_temp_token(data.temp_token)
-    return str(payload.get('user_id', 'unknown')) if payload else 'invalid'
+    return str(payload.get('user_id', 'unknown')) if payload else str(uuid.uuid4())
 
 
 @router.post('/verify-2fa', response={200: Token, 401: DetailOut, 404: DetailOut, 429: DetailOut})
