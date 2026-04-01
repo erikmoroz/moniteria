@@ -38,26 +38,14 @@ class RefreshToken(BaseModel):
 class LoginIn(BaseModel):
     """User login input schema."""
 
-    email: str
+    email: ValidatedEmail
     password: str
-
-    @field_validator('email')
-    @classmethod
-    def validate_email(cls, v: str) -> str:
-        """Validate email format using Django's email validator."""
-        v = v.lower().strip()
-        validator = EmailValidator()
-        try:
-            validator(v)
-        except DjangoValidationError:
-            raise ValueError('Enter a valid email address')
-        return v
 
 
 class RegisterIn(BaseModel):
     """User registration input schema."""
 
-    email: str
+    email: ValidatedEmail
     password: str = Field(min_length=8, max_length=128)
     full_name: str | None = None
     workspace_name: str
@@ -82,18 +70,6 @@ class RegisterIn(BaseModel):
         required = get_privacy()['version']
         if v != required:
             raise ValueError(f'Must accept current Privacy Policy version ({required})')
-        return v
-
-    @field_validator('email')
-    @classmethod
-    def validate_email(cls, v: str) -> str:
-        """Validate email format using Django's email validator."""
-        v = v.lower().strip()
-        validator = EmailValidator()
-        try:
-            validator(v)
-        except DjangoValidationError:
-            raise ValueError('Enter a valid email address')
         return v
 
 
