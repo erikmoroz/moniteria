@@ -476,6 +476,8 @@ class UserService:
         profile = {
             'id': user.id,
             'email': user.email,
+            'email_verified': user.email_verified,
+            'pending_email': user.pending_email or None,
             'full_name': user.full_name,
             'is_active': user.is_active,
             'created_at': user.created_at.isoformat(),
