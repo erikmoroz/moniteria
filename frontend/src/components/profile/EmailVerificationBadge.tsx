@@ -5,10 +5,9 @@ import { authApi } from '../../api/client'
 interface Props {
   verified: boolean
   email: string
-  onResend?: () => void
 }
 
-export default function EmailVerificationBadge({ verified, email, onResend }: Props) {
+export default function EmailVerificationBadge({ verified, email }: Props) {
   const [isResending, setIsResending] = useState(false)
 
   const handleResend = async () => {
@@ -16,7 +15,6 @@ export default function EmailVerificationBadge({ verified, email, onResend }: Pr
     try {
       await authApi.resendVerification(email)
       toast.success('Verification email sent!')
-      onResend?.()
     } catch {
       toast.error('Failed to send verification email')
     } finally {
