@@ -80,6 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.success('Logged in successfully');
         const reconsent = await checkConsentStatus();
         if (!reconsent) navigate('/');
+      } else {
+        toast.error('Unexpected response from server. Please try again.');
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
@@ -94,6 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authApi.register(data);
       if (response.access_token) {
         setAuthToken(response.access_token);
+      } else {
+        toast.error('Unexpected response from server. Please try again.');
+        return;
       }
 
       queryClient.clear();
@@ -122,6 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.success('Logged in successfully');
         const reconsent = await checkConsentStatus();
         if (!reconsent) navigate('/');
+      } else {
+        toast.error('Unexpected response from server. Please try again.');
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
