@@ -2,6 +2,7 @@
 
 from typing import Literal
 
+from django.conf import settings
 from ninja import Router
 
 from common.auth import JWTAuth, user_to_schema
@@ -141,7 +142,7 @@ def delete_account(request, data: AccountDeleteIn):
 
 
 @router.get('/me/export', auth=JWTAuth())
-@rate_limit('data_export', limit=3, period=3600)
+@rate_limit('data_export', limit=settings.RATE_LIMIT_DATA_EXPORT, period=settings.RATE_LIMIT_DATA_EXPORT_PERIOD)
 def export_my_data(request):
     """
     Export all personal data as a JSON file (GDPR Articles 15 & 20).

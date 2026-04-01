@@ -5,8 +5,8 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from ninja import Router
 
-from common.auth import consume_temp_token, create_access_token, create_temp_token
-from common.throttle import rate_limit
+from common.auth import consume_temp_token, create_access_token, create_temp_token, decode_temp_token
+from common.throttle import rate_limit, rate_limit_by_key
 from common.utils import get_client_ip
 from core.schemas import DetailOut, ErrorOut, LoginIn, LoginOut, RegisterIn, Token, Verify2FAIn
 from users.exceptions import TwoFactorNotEnabledError
@@ -18,7 +18,7 @@ User = get_user_model()
 
 
 @router.post('/register', response={201: Token, 400: ErrorOut, 403: DetailOut, 429: DetailOut})
-@rate_limit('register', limit=5, period=60)
+@rate_limit('register', limit=settings.RATE_LIMIT_REGISTER, period=settings.RATE_LIMIT_REGISTER_PERIOD)
 def register(request, data: RegisterIn):
     """
     Register a new user with workspace and default data.
@@ -63,7 +63,7 @@ def register(request, data: RegisterIn):
 
 
 @router.post('/login', response={200: LoginOut, 401: DetailOut, 429: DetailOut})
-@rate_limit('login', limit=10, period=60)
+@rate_limit('login', limit=settings.RATE_LIMIT_LOGIN, period=settings.RATE_LIMIT_LOGIN_PERIOD)
 def login(request, data: LoginIn):
     """
     Login user and return JWT token.
@@ -90,8 +90,18 @@ def login(request, data: LoginIn):
     return 200, LoginOut(access_token=access_token)
 
 
+def _extract_2fa_rate_key(request, data: Verify2FAIn = None, **kwargs):
+    payload = decode_temp_token(data.temp_token)
+    return str(payload.get('user_id', 'unknown')) if payload else 'invalid'
+
+
 @router.post('/verify-2fa', response={200: Token, 401: DetailOut, 404: DetailOut, 429: DetailOut})
-@rate_limit('verify_2fa', limit=10, period=60)
+@rate_limit_by_key(
+    'verify_2fa',
+    _extract_2fa_rate_key,
+    limit=settings.RATE_LIMIT_VERIFY_2FA,
+    period=settings.RATE_LIMIT_VERIFY_2FA_PERIOD,
+)
 def verify_2fa(request, data: Verify2FAIn):
     payload = consume_temp_token(data.temp_token)
     if not payload:

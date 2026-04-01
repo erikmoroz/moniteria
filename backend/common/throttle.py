@@ -43,6 +43,40 @@ def rate_limit(key_prefix: str, limit: int = 10, period: int = 60):
     return decorator
 
 
+def rate_limit_by_key(key_prefix: str, key_extractor, limit: int = 10, period: int = 60):
+    """
+    Rate limiter using Django cache with a custom key extractor.
+
+    Combines the client IP with a key extracted from the request (e.g. user_id
+    from a temp token) so that rotating IPs alone does not bypass the limit.
+
+    Args:
+        key_prefix: Unique prefix for this rate limit (e.g., 'verify_2fa')
+        key_extractor: Callable(request, *args, **kwargs) -> str
+        limit: Maximum number of requests allowed within the period
+        period: Time window in seconds
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(request, *args, **kwargs):
+            key_part = key_extractor(request, *args, **kwargs)
+            ip = get_client_ip(request) or 'unknown'
+
+            cache_key = f'ratelimit:{key_prefix}:{ip}:{key_part}'
+
+            count = cache.get(cache_key, 0)
+            if count >= limit:
+                raise HttpError(429, 'Too many requests. Please try again later.')
+
+            cache.set(cache_key, count + 1, period)
+            return func(request, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 def validate_file_size(file, max_size_mb: int = 5):
     """
     Validate uploaded file size.
