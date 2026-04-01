@@ -146,7 +146,7 @@ class UserService:
     @staticmethod
     def resend_verification(email: str) -> str:
         message = 'If your email is unverified, a new verification email has been sent.'
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
         if not user or user.email_verified:
             return message
 

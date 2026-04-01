@@ -129,7 +129,7 @@ def resend_verification(request, data: ResendVerificationIn):
 def forgot_password(request, data: ForgotPasswordIn):
     from users.services import UserService
 
-    user = User.objects.filter(email=data.email).first()
+    user = User.objects.filter(email__iexact=data.email).first()
     message = 'If an account exists with this email, a reset link has been sent.'
 
     if not user:
