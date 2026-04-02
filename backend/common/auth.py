@@ -134,14 +134,12 @@ def consume_temp_token(token: str) -> dict | None:
         return None
 
     cache_key = f'2fa_temp_token_used:{jti}'
-    if cache.get(cache_key):
-        return None
-
     ttl = _ttl_from_exp(payload.get('exp', 0))
     if ttl == 0:
         return None
 
-    cache.set(cache_key, True, ttl)
+    if not cache.add(cache_key, True, ttl):
+        return None
     return payload
 
 
