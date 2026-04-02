@@ -121,7 +121,8 @@ def verify_email(request, data: VerifyEmailIn):
 def resend_verification(request, data: ResendVerificationIn):
     from users.services import UserService
 
-    return 200, {'message': UserService.resend_verification(data.email)}
+    UserService.resend_verification(data.email)
+    return 200, {'message': 'If your email is unverified, a new verification email has been sent.'}
 
 
 @router.post('/forgot-password', response={200: MessageOut, 429: DetailOut})

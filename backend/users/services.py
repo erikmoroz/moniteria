@@ -149,13 +149,11 @@ class UserService:
         )
 
     @staticmethod
-    def resend_verification(email: str) -> str:
-        message = 'If your email is unverified, a new verification email has been sent.'
+    def resend_verification(email: str) -> None:
         user = User.objects.filter(email=email).first()
         if not user or user.email_verified:
-            # Normalize response time to reduce timing side-channel
             time.sleep(random.uniform(0.1, 0.3))
-            return message
+            return
 
         token = generate_verification_token(user.id)
         verification_url = f'{settings.FRONTEND_URL}/verify-email?token={token}'
@@ -169,7 +167,6 @@ class UserService:
                 'verification_url': verification_url,
             },
         )
-        return message
 
     @staticmethod
     @db_transaction.atomic
