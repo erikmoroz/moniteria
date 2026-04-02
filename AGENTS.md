@@ -74,6 +74,41 @@ Workspace → BudgetAccount → BudgetPeriod → [Category, Transaction, Budget,
 
 Every endpoint must verify resources belong to the user's workspace.
 
+## Model Relationships Reference
+
+| Parent | Child | FK Field | on_delete | related_name |
+|--------|-------|----------|-----------|-------------|
+| Workspace | BudgetAccount | `workspace` | CASCADE | (default) |
+| Workspace | Currency | `workspace` | CASCADE | `currencies` |
+| BudgetAccount | BudgetPeriod | `budget_account` | CASCADE | `budget_periods` |
+| BudgetPeriod | Transaction | `budget_period` | SET_NULL | `transactions` |
+| BudgetPeriod | PlannedTransaction | `budget_period` | SET_NULL | `planned_transactions` |
+| BudgetPeriod | CurrencyExchange | `budget_period` | SET_NULL | `currency_exchanges` |
+
+### SET_NULL Children Must Be Explicitly Deleted
+
+`Transaction`, `PlannedTransaction`, and `CurrencyExchange` have `on_delete=SET_NULL` on their `budget_period` FK. Django does **not** cascade-delete them — it sets `budget_period=NULL`, leaving orphaned rows. These orphans hold FK references to `Currency` (with `on_delete=PROTECT`), which blocks downstream deletions with unhandled 500 errors.
+
+Any `delete()` method on a parent model that has `SET_NULL` children must explicitly delete those children first:
+
+```python
+@staticmethod
+@db_transaction.atomic
+def delete(workspace_id: int, account_id: int) -> None:
+    from currency_exchanges.models import CurrencyExchange
+    from planned_transactions.models import PlannedTransaction
+    from transactions.models import Transaction
+
+    account = BudgetAccountService.get(account_id, workspace_id)
+    period_ids = list(account.budget_periods.values_list('id', flat=True))
+    Transaction.objects.filter(budget_period_id__in=period_ids).delete()
+    PlannedTransaction.objects.filter(budget_period_id__in=period_ids).delete()
+    CurrencyExchange.objects.filter(budget_period_id__in=period_ids).delete()
+    account.delete()
+```
+
+> **When adding a new model with `on_delete=SET_NULL`**: Update every parent deletion service that could leave orphans. Also update `UserService.delete_account()` and `export_all_data()` per GDPR rules.
+
 ## Backend Code Style (Python)
 
 ### Imports
@@ -233,6 +268,65 @@ class WorkspaceService:
         WorkspaceService._send_existing_invite(user, workspace)
 ```
 
+### Concurrent Safety with `select_for_update`
+
+For operations that must be atomic under concurrent requests (e.g., consuming a one-time recovery code), use `select_for_update()` to acquire a row-level lock and combine related field updates into a single `save()`:
+
+```python
+@staticmethod
+@db_transaction.atomic
+def verify_code(user: User, code: str) -> bool:
+    try:
+        twofa = UserTwoFactor.objects.select_for_update().get(user=user, is_enabled=True)
+    except UserTwoFactor.DoesNotExist:
+        return False
+
+    if _try_recovery_code(twofa, code):
+        twofa.last_used_at = timezone.now()
+        twofa.save(update_fields=['backup_codes', 'last_used_at', 'updated_at'])
+        return True
+    return False
+```
+
+Without `select_for_update()`, two concurrent requests could both read the same recovery code before either writes, allowing double-use.
+
+### Rate Limiting
+
+Two decorators are available in `common/throttle.py`:
+
+- **`rate_limit(key_prefix, limit, period)`** — Keys by client IP only. Use for most endpoints.
+- **`rate_limit_by_key(key_prefix, key_extractor, limit, period)`** — Keys by client IP + custom key (e.g., `user_id` from a temp token). Use when an attacker could rotate IPs to bypass IP-only limits.
+
+All rate limit `limit` and `period` values **must** be configured via Django settings backed by env vars, not hardcoded. Each setting needs an inline comment explaining its purpose:
+
+```python
+# Max 2FA verification attempts per IP+user within the period window
+RATE_LIMIT_VERIFY_2FA = int(os.getenv('RATE_LIMIT_VERIFY_2FA', '10'))
+# Time window (seconds) for 2FA verification rate limiting
+RATE_LIMIT_VERIFY_2FA_PERIOD = int(os.getenv('RATE_LIMIT_VERIFY_2FA_PERIOD', '60'))
+```
+
+Reference in endpoints via `settings.RATE_LIMIT_*`:
+
+```python
+from django.conf import settings
+from common.throttle import rate_limit, rate_limit_by_key
+
+@router.post('/verify-2fa', response={200: Token, 401: DetailOut, 404: DetailOut, 429: DetailOut})
+@rate_limit_by_key('verify_2fa', _extract_2fa_rate_key, limit=settings.RATE_LIMIT_VERIFY_2FA, period=settings.RATE_LIMIT_VERIFY_2FA_PERIOD)
+def verify_2fa(request, data: Verify2FAIn):
+    ...
+```
+
+### Token Consumption Patterns
+
+Two functions exist in `common/auth.py` for temp tokens:
+
+- **`decode_temp_token(token)`** — Peeks at the token payload without side effects. Use when you need to read claims without consuming the token (e.g., extracting a `user_id` for rate limiting).
+- **`consume_temp_token(token)`** — Consumes the token (marks its JTI as used in cache). Returns `None` on replay. Use when the token should be single-use (e.g., `verify_2fa`).
+
+Never use `decode_temp_token` where `consume_temp_token` is appropriate — a consumed token must not be replayable.
+
 ### Check Object State, Not Just Existence
 
 When a model has a boolean flag (e.g., `is_enabled`, `is_active`), always check both the object's existence AND the flag. Records can exist in intermediate/disabled states, and a simple truthiness check on the object silently misses `flag=False`.
@@ -272,6 +366,20 @@ def verify_2fa(request, data):
         raise TwoFactorNotEnabledError()
     if not TwoFactorService.verify_code(user, data.code):
         return 401, {'detail': 'Invalid verification code'}
+```
+
+This also applies to service methods that depend on a resource existing — validate and raise **before** creating records. For example, reject creation when no budget period covers the given date, rather than saving an invisible orphan record:
+
+```python
+# Bad — saves record with budget_period=None, invisible to the API
+period_id = CurrencyExchangeService._find_period_for_date(workspace_id, data.date)
+CurrencyExchange.objects.create(budget_period_id=period_id, ...)
+
+# Good — reject creation when no period exists
+period_id = CurrencyExchangeService._find_period_for_date(workspace_id, data.date)
+if not period_id:
+    raise CurrencyExchangeNoPeriodError()
+CurrencyExchange.objects.create(budget_period_id=period_id, ...)
 ```
 
 ### Document All Possible Response Status Codes
@@ -346,6 +454,24 @@ class CurrencyNotFoundInWorkspaceError(ValidationError):
 
 Use Factory Boy factories (e.g., `WorkspaceMemberFactory`) instead of direct `Model.objects.create()` calls when creating test database records. Factories exist in `<app>/factories.py` across the codebase.
 
+**Factory gotcha:** Factories for financial records (`TransactionFactory`, `PlannedTransactionFactory`, `CurrencyExchangeFactory`) default to creating their own `BudgetPeriod` and `User` via `SubFactory`. When tests need records tied to a specific workspace/account/period, pass these explicitly:
+
+```python
+period = BudgetPeriodFactory(
+    budget_account=account,
+    start_date='2025-01-01',
+    end_date='2025-01-31',
+    created_by=self.user,
+)
+pln = self.workspace.currencies.get(symbol='PLN')
+transaction = TransactionFactory(
+    budget_period=period,
+    currency=pln,
+    created_by=self.user,
+    updated_by=self.user,
+)
+```
+
 ```python
 from common.tests.mixins import AuthMixin, APIClientMixin
 from django.test import TestCase
@@ -361,6 +487,8 @@ class TestTransactions(AuthMixin, APIClientMixin, TestCase):
         # self.user, self.workspace, self.auth_token are available
         self.assertStatus(403)
 ```
+
+`AuthMixin` creates a workspace with PLN+USD currencies (via `WorkspaceFactory`), a user, a workspace membership, and a default "General" `BudgetAccount`. The mixin also creates an `auth_token` and provides `auth_headers()`.
 
 ## Frontend Code Style (TypeScript/React)
 
@@ -424,6 +552,35 @@ const mutation = useMutation({
   },
 })
 ```
+
+### Auth Response Error Guard
+
+Every auth function that expects an `access_token` in its response must have an `else` branch showing an error toast when the token is missing. Never silently do nothing on an unexpected response:
+
+```typescript
+if (response.access_token) {
+  // ... existing success logic
+} else {
+  toast.error('Unexpected response from server. Please try again.')
+  return
+}
+```
+
+### Stateful Component Preservation with CSS `hidden`
+
+When a component holds important transient state (e.g., recovery codes that cannot be re-displayed), use CSS `hidden` to keep it mounted but visually hidden when switching tabs. Conditional rendering (`{condition && <Component />}`) unmounts the component, permanently losing internal state:
+
+```tsx
+// Bad — unmounts TwoFactorSection, losing recovery codes
+{activeTab === 'security' && <TwoFactorSection />}
+
+// Good — stays mounted, preserving internal state
+<div className={activeTab === 'security' ? '' : 'hidden'}>
+  <TwoFactorSection />
+</div>
+```
+
+Only apply this to components where state loss is problematic — other tabs can continue using conditional rendering.
 
 ### API Client Pattern
 

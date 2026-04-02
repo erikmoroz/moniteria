@@ -331,3 +331,33 @@ def _extract_2fa_rate_key(request, data: Verify2FAIn = None, **kwargs):
 The IP portion of the key still prevents unlimited flooding from a single source.
 
 **Files changed:** `backend/core/api.py`
+
+---
+
+## Atomic Cache Operations
+
+### TOCTOU-Free Rate Limiting with `cache.add()` / `cache.incr()`
+
+**Context:** Round 3, Task 3 — Fix TOCTOU race condition in rate limiter
+
+The previous `rate_limit` and `rate_limit_by_key` decorators used a non-atomic `cache.get()` → `cache.set()` pattern. Two concurrent requests could both read `count = 9`, both pass the check, and both set `count = 10`, allowing 11 requests through instead of 10.
+
+**Established pattern:** Use `cache.add()` (atomic "create if not exists") + `cache.incr()` (atomic increment) to eliminate the TOCTOU window:
+
+```python
+def _atomic_increment(cache_key: str, period: int) -> int:
+    added = cache.add(cache_key, 1, period)
+    if added:
+        return 1
+    try:
+        return cache.incr(cache_key)
+    except ValueError:
+        cache.set(cache_key, 1, period)
+        return 1
+```
+
+The check is now post-increment (`count > limit`) instead of pre-increment (`count >= limit`). The overage is at most 1 request per concurrent burst, which is strictly better than the previous unlimited overage.
+
+**Key detail:** The `ValueError` fallback handles the edge case where the cache key expires between `cache.add()` returning `False` and `cache.incr()` being called — `cache.incr()` raises `ValueError` on a missing key.
+
+**Files changed:** `backend/common/throttle.py`, `backend/common/tests/test_throttle.py`

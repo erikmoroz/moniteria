@@ -287,7 +287,7 @@ cd backend && pytest users/tests/ -v
 
 - [x] Task 1: Add ownership validation to `WorkspaceService.delete_workspace`
 - [x] Task 2: Fix shared rate-limit bucket for invalid temp tokens
-- [ ] Task 3: Fix TOCTOU race condition in rate limiter
+- [x] Task 3: Fix TOCTOU race condition in rate limiter
 - [ ] Task 4: Derive `consume_temp_token` cache TTL from token expiry
 - [ ] Task 5: Explicitly delete `UserTwoFactor` records in `UserService.delete_account`
 

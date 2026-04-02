@@ -8,6 +8,24 @@ from ninja.errors import HttpError
 from common.utils import get_client_ip
 
 
+def _atomic_increment(cache_key: str, period: int) -> int:
+    """
+    Atomically increment a cache counter.
+
+    Uses cache.add() (atomic "create if not exists") to seed the key with TTL,
+    then cache.incr() for subsequent increments. The incr fallback to set handles
+    the edge case where the key expired between add and incr.
+    """
+    added = cache.add(cache_key, 1, period)
+    if added:
+        return 1
+    try:
+        return cache.incr(cache_key)
+    except ValueError:
+        cache.set(cache_key, 1, period)
+        return 1
+
+
 def rate_limit(key_prefix: str, limit: int = 10, period: int = 60):
     """
     Simple rate limiter using Django cache.
@@ -30,12 +48,11 @@ def rate_limit(key_prefix: str, limit: int = 10, period: int = 60):
             ip = get_client_ip(request) or 'unknown'
 
             cache_key = f'ratelimit:{key_prefix}:{ip}'
-            count = cache.get(cache_key, 0)
+            count = _atomic_increment(cache_key, period)
 
-            if count >= limit:
+            if count > limit:
                 raise HttpError(429, 'Too many requests. Please try again later.')
 
-            cache.set(cache_key, count + 1, period)
             return func(request, *args, **kwargs)
 
         return wrapper
@@ -64,12 +81,11 @@ def rate_limit_by_key(key_prefix: str, key_extractor, limit: int = 10, period: i
             ip = get_client_ip(request) or 'unknown'
 
             cache_key = f'ratelimit:{key_prefix}:{ip}:{key_part}'
+            count = _atomic_increment(cache_key, period)
 
-            count = cache.get(cache_key, 0)
-            if count >= limit:
+            if count > limit:
                 raise HttpError(429, 'Too many requests. Please try again later.')
 
-            cache.set(cache_key, count + 1, period)
             return func(request, *args, **kwargs)
 
         return wrapper
