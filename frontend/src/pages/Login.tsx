@@ -26,8 +26,8 @@ export default function Login() {
         setRequires2FA(true);
         setTempToken(result.temp_token);
       }
-    } catch (error) {
-      console.error(error)
+    } catch {
+      // Error already displayed by AuthContext
     } finally {
       setIsSubmitting(false);
     }
@@ -39,8 +39,8 @@ export default function Login() {
 
     try {
       await verify2FA(tempToken, twoFACode);
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Error already displayed by AuthContext
     } finally {
       setIsSubmitting(false);
     }
