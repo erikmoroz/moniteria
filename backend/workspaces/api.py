@@ -6,7 +6,7 @@ from ninja import Router
 
 from common.auth import JWTAuth, WorkspaceJWTAuth
 from common.permissions import require_role
-from core.schemas import MessageOut
+from core.schemas import DetailOut, MessageOut
 from users.two_factor import TwoFactorService
 from workspaces.exceptions import WorkspaceNotFoundError
 from workspaces.models import ADMIN_ROLES, Role, Workspace, WorkspaceMember
@@ -271,7 +271,9 @@ def reset_member_password(
 
 
 @router.post(
-    '/{workspace_id}/members/{user_id}/reset-2fa', response={200: MessageOut, 403: dict, 404: dict}, auth=JWTAuth()
+    '/{workspace_id}/members/{user_id}/reset-2fa',
+    response={200: MessageOut, 400: DetailOut, 403: DetailOut, 404: DetailOut},
+    auth=JWTAuth(),
 )
 def reset_member_2fa(request: HttpRequest, workspace_id: int, user_id: int):
     """Reset a workspace member's two-factor authentication (admin action)."""
