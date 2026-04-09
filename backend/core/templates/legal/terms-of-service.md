@@ -1,6 +1,6 @@
 ---
 version: "1.0"
-effective_date: "2025-01-01"
+effective_date: "2027-01-01"
 ---
 
 ## 1. Acceptance of Terms
