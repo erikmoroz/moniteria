@@ -11,6 +11,7 @@ from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_or_create_period_balance, resolve_currency
 from planned_transactions.exceptions import (
     PlannedTransactionAlreadyExecutedError,
+    PlannedTransactionCannotRevertError,
     PlannedTransactionCategoryNotFoundError,
     PlannedTransactionImportError,
     PlannedTransactionNoActivePeriodError,
@@ -93,9 +94,13 @@ class PlannedTransactionService:
         return planned
 
     @staticmethod
+    @db_transaction.atomic
     def update(user, workspace_id: int, planned_id: int, data: PlannedTransactionUpdate) -> PlannedTransaction:
         """Update a planned transaction."""
         planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
+
+        if planned.status == 'done' and data.status != 'done':
+            raise PlannedTransactionCannotRevertError()
 
         currency = resolve_currency(workspace_id, data.currency)
         if not currency:
@@ -110,10 +115,13 @@ class PlannedTransactionService:
         planned.currency = currency
         planned.category_id = data.category_id
         planned.planned_date = data.planned_date
-        planned.status = data.status
         planned.updated_by = user
-        planned.save()
 
+        if data.status == 'done' and planned.status != 'done':
+            return PlannedTransactionService._execute_side_effects(user, workspace_id, planned, planned.planned_date)
+
+        planned.status = data.status
+        planned.save()
         return planned
 
     @staticmethod
