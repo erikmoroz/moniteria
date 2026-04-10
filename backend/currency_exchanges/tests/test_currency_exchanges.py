@@ -697,18 +697,18 @@ class TestCurrencyExchangePagination(CurrencyExchangeTestCase):
 
     def _create_exchanges(self, count):
         """Create the given number of exchanges in period1."""
-        for i in range(count):
-            CurrencyExchangeFactory(
-                workspace=self.workspace,
-                budget_period=self.period1,
-                date=date(2025, 1, i % 28 + 1),
-                from_currency=self.currencies['USD'],
-                from_amount=Decimal('10.00'),
-                to_currency=self.currencies['EUR'],
-                to_amount=Decimal('9.00'),
-                created_by=self.user,
-                updated_by=self.user,
-            )
+        CurrencyExchangeFactory.create_batch(
+            count,
+            workspace=self.workspace,
+            budget_period=self.period1,
+            date=date(2025, 1, 15),
+            from_currency=self.currencies['USD'],
+            from_amount=Decimal('10.00'),
+            to_currency=self.currencies['EUR'],
+            to_amount=Decimal('9.00'),
+            created_by=self.user,
+            updated_by=self.user,
+        )
 
     def test_default_pagination(self):
         """Default page_size=50, page=1."""

@@ -783,12 +783,16 @@ class TestCategoryPagination(AuthMixin, APIClientMixin, TestCase):
 
     def _create_categories(self, count):
         """Create the given number of categories in the test period."""
-        for i in range(count):
-            CategoryFactory(
+        categories = [
+            Category(
                 budget_period=self.period,
+                workspace=self.workspace,
                 name=f'Category {i}',
                 created_by=self.user,
             )
+            for i in range(count)
+        ]
+        Category.objects.bulk_create(categories)
 
     def test_default_pagination(self):
         """Default page_size=50, page=1."""

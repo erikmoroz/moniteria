@@ -797,14 +797,14 @@ class TestTransactionPagination(AuthMixin, APIClientMixin, TestCase):
 
     def _create_transactions(self, count):
         """Create the given number of transactions in the test period."""
-        for i in range(count):
-            TransactionFactory(
-                budget_period=self.period,
-                workspace=self.workspace,
-                currency=self.pln_currency,
-                created_by=self.user,
-                updated_by=self.user,
-            )
+        TransactionFactory.create_batch(
+            count,
+            budget_period=self.period,
+            workspace=self.workspace,
+            currency=self.pln_currency,
+            created_by=self.user,
+            updated_by=self.user,
+        )
 
     def test_default_pagination(self):
         """Default page_size=50, page=1."""

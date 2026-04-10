@@ -918,18 +918,17 @@ class TestPlannedTransactionPagination(PlannedTransactionTestCase):
 
     def _create_planned_transactions(self, count):
         """Create the given number of planned transactions in period1."""
-        for i in range(count):
-            PlannedTransactionFactory(
-                workspace=self.workspace,
-                budget_period=self.period1,
-                name=f'Planned {i}',
-                amount=Decimal('50.00'),
-                currency=self.currencies['USD'],
-                planned_date=date(2025, 1, i % 28 + 1),
-                status='pending',
-                created_by=self.user,
-                updated_by=self.user,
-            )
+        PlannedTransactionFactory.create_batch(
+            count,
+            workspace=self.workspace,
+            budget_period=self.period1,
+            amount=Decimal('50.00'),
+            currency=self.currencies['USD'],
+            planned_date=date(2025, 1, 15),
+            status='pending',
+            created_by=self.user,
+            updated_by=self.user,
+        )
 
     def test_default_pagination(self):
         """Default page_size=50, page=1."""
