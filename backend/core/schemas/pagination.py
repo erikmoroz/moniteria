@@ -23,6 +23,16 @@ def paginate_queryset(
     page: int = 1,
     page_size: int = DEFAULT_PAGE_SIZE,
 ) -> tuple[list, int, int, int, int]:
+    """Slice a queryset into a single page of results.
+
+    This issues exactly two SQL queries:
+      1. SELECT COUNT(*) ...           — for the total row count
+      2. SELECT ... LIMIT N OFFSET M   — for the page items only
+
+    Django's QuerySet slicing compiles into SQL LIMIT/OFFSET — it does NOT
+    load all rows into Python and slice them in memory. This is the same
+    pattern used by DRF's PageNumberPagination.
+    """
     if page_size not in ALLOWED_PAGE_SIZES:
         page_size = DEFAULT_PAGE_SIZE
     if page < 1:
