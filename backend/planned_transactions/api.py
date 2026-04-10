@@ -10,6 +10,7 @@ from ninja.files import UploadedFile
 from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
 from common.throttle import validate_file_size
+from core.schemas.pagination import PaginatedOut
 from planned_transactions.schemas import (
     PlannedTransactionCreate,
     PlannedTransactionOut,
@@ -26,15 +27,17 @@ router = Router(tags=['Planned Transactions'])
 # =============================================================================
 
 
-@router.get('', response=list[PlannedTransactionOut], auth=WorkspaceJWTAuth())
+@router.get('', response=PaginatedOut[PlannedTransactionOut], auth=WorkspaceJWTAuth())
 def list_planned(
     request: HttpRequest,
     status: str | None = Query(None),
     budget_period_id: int | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50),
 ):
     """List planned transactions for the current workspace."""
     workspace_id = request.auth.current_workspace_id
-    return PlannedTransactionService.list(workspace_id, status, budget_period_id)
+    return PlannedTransactionService.list(workspace_id, status, budget_period_id, page, page_size)
 
 
 @router.post('', response={201: PlannedTransactionOut, 400: dict}, auth=WorkspaceJWTAuth())
