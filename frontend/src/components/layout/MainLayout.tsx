@@ -19,8 +19,8 @@ function NoWorkspaceMessage() {
   return (
     <div className="flex items-center justify-center h-full">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">No workspace selected</h2>
-        <p className="text-gray-500 mb-4">Create a workspace or ask to be added to one.</p>
+        <h2 className="text-lg font-semibold text-text mb-2">No workspace selected</h2>
+        <p className="text-text-muted mb-4">Create a workspace or ask to be added to one.</p>
         
         {!showForm ? (
           <CreateWorkspaceButton onClick={() => setShowForm(true)} />
