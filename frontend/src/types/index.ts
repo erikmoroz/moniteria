@@ -228,3 +228,34 @@ export interface PaginatedResponse<T> {
   page_size: number;
   total_pages: number;
 }
+
+// ============= Totals Types =============
+export interface TransactionTotalItem {
+  type: 'income' | 'expense';
+  currency: string;
+  total: string;
+}
+
+export interface TransactionTotalsResponse {
+  totals: TransactionTotalItem[];
+}
+
+export interface PlannedTransactionTotalItem {
+  currency: string;
+  total: string;
+}
+
+export interface PlannedTransactionTotalsResponse {
+  totals: PlannedTransactionTotalItem[];
+}
+
+export interface CurrencyExchangeTotalItem {
+  from_currency: string;
+  to_currency: string;
+  from_total: string;
+  to_total: string;
+}
+
+export interface CurrencyExchangeTotalsResponse {
+  totals: CurrencyExchangeTotalItem[];
+}
