@@ -115,3 +115,17 @@ class TransactionOut(BaseModel):
         if isinstance(value, int):
             return value
         return None
+
+
+class TransactionTotalsItem(BaseModel):
+    """Schema for a single totals group."""
+
+    group: str  # "income"/"expense" (when group_by=type) or category name (when group_by=category)
+    currency: str
+    total: Decimal
+
+
+class TransactionTotalsResponse(BaseModel):
+    """Schema for transaction totals response."""
+
+    totals: list[TransactionTotalsItem]

@@ -12,7 +12,7 @@ from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
 from common.throttle import validate_file_size
 from core.schemas.pagination import PaginatedOut
-from transactions.schemas import TransactionCreate, TransactionOut
+from transactions.schemas import TransactionCreate, TransactionOut, TransactionTotalsResponse
 from transactions.services import TransactionService
 from workspaces.models import WRITE_ROLES
 
@@ -54,6 +54,40 @@ def list_transactions(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get('/totals', response=TransactionTotalsResponse, auth=WorkspaceJWTAuth())
+def get_transaction_totals(
+    request: HttpRequest,
+    budget_period_id: int | None = Query(None),
+    current_date: date | None = Query(None),
+    type: list[str] | None = Query(None),
+    category_id: list[int] | None = Query(None),
+    currency: list[str] | None = Query(None),
+    search: str | None = Query(None),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    amount_gte: Decimal | None = Query(None),
+    amount_lte: Decimal | None = Query(None),
+    group_by: str = Query('type', pattern=r'^(type|category)$'),
+):
+    """Get aggregated transaction totals grouped by type or category."""
+    workspace_id = request.auth.current_workspace_id
+    totals = TransactionService.totals(
+        workspace_id=workspace_id,
+        budget_period_id=budget_period_id,
+        current_date=current_date,
+        type=type,
+        category_id=category_id,
+        currency=currency,
+        search=search,
+        start_date=start_date,
+        end_date=end_date,
+        amount_gte=amount_gte,
+        amount_lte=amount_lte,
+        group_by=group_by,
+    )
+    return {'totals': totals}
 
 
 @router.get('/export/', auth=WorkspaceJWTAuth())
