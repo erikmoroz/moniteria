@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { X, ChevronDown, Filter } from 'lucide-react'
 import { transactionsApi, categoriesApi, currenciesApi } from '../api/client'
-import type { Transaction, Category, Currency, PaginatedResponse, TransactionTotalItem } from '../types'
+import type { Transaction, Category, Currency, PaginatedResponse } from '../types'
 import { useBudgetPeriod } from '../contexts/BudgetPeriodContext'
 import { usePermissions } from '../hooks/usePermissions'
 import TransactionList from '../components/transactions/TransactionList'
@@ -213,12 +213,35 @@ export default function Transactions() {
   const totalItems = apiResponse?.total || 0
   const totalPages = apiResponse?.total_pages || 0
 
-  // Fetch totals for all filtered transactions (not just current page)
-  const { data: totalsData } = useQuery({
-    queryKey: ['transactions-totals', selectedPeriodId, searchQuery, appliedStartDate, appliedEndDate, appliedTypes, appliedCategories, appliedCurrencies, appliedAmountMin, appliedAmountMax],
-    queryFn: async (): Promise<{ totals: TransactionTotalItem[] } | null> => {
+  // Fetch type totals (income/expense) for all filtered transactions
+  const totalsFilterKey = [selectedPeriodId, searchQuery, appliedStartDate, appliedEndDate, appliedTypes, appliedCategories, appliedCurrencies, appliedAmountMin, appliedAmountMax]
+  const { data: typeTotalsData } = useQuery({
+    queryKey: ['transactions-totals-type', ...totalsFilterKey],
+    queryFn: async () => {
       if (!selectedPeriodId) return null
       return transactionsApi.getTotals({
+        group_by: 'type',
+        budget_period_id: selectedPeriodId,
+        search: searchQuery || undefined,
+        start_date: appliedStartDate || undefined,
+        end_date: appliedEndDate || undefined,
+        type: appliedTypes.length > 0 ? appliedTypes : undefined,
+        category_id: appliedCategories.length > 0 ? appliedCategories : undefined,
+        currency: appliedCurrencies.length > 0 ? appliedCurrencies : undefined,
+        amount_gte: appliedAmountMin ? parseFloat(appliedAmountMin) : undefined,
+        amount_lte: appliedAmountMax ? parseFloat(appliedAmountMax) : undefined,
+      })
+    },
+    enabled: !!selectedPeriodId && totalItems > 0,
+  })
+
+  // Fetch category totals for all filtered transactions
+  const { data: categoryTotalsData } = useQuery({
+    queryKey: ['transactions-totals-category', ...totalsFilterKey],
+    queryFn: async () => {
+      if (!selectedPeriodId) return null
+      return transactionsApi.getTotals({
+        group_by: 'category',
         budget_period_id: selectedPeriodId,
         search: searchQuery || undefined,
         start_date: appliedStartDate || undefined,
@@ -237,7 +260,8 @@ export default function Transactions() {
     mutationFn: (id: number) => transactionsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions-totals'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-totals-type'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-totals-category'] })
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] })
       // Force refetch of period-balances to ensure UI updates immediately
       queryClient.refetchQueries({ queryKey: ['period-balances'] })
@@ -252,7 +276,8 @@ export default function Transactions() {
     mutationFn: (formData: FormData) => transactionsApi.import(formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transactions-totals'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-totals-type'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-totals-category'] })
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] })
       queryClient.refetchQueries({ queryKey: ['period-balances'] })
       toast.success('Transactions imported successfully!')
@@ -746,8 +771,12 @@ export default function Transactions() {
             onEdit={canManageBudgetData ? handleEdit : undefined}
             onDelete={canManageBudgetData ? handleDelete : undefined}
           />
-          {totalItems > 0 && totalsData?.totals && totalsData.totals.length > 0 && (
-            <TotalsSummary mode="transactions" totals={totalsData.totals} />
+          {totalItems > 0 && typeTotalsData?.totals && typeTotalsData.totals.length > 0 && (
+            <TotalsSummary
+              mode="transactions"
+              typeTotals={typeTotalsData.totals}
+              categoryTotals={categoryTotalsData?.totals}
+            />
           )}
           {totalItems > 0 && (
             <Pagination
